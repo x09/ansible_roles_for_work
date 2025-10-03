@@ -1,0 +1,102 @@
+---
+- hosts:
+    - srv_group
+  roles:
+    - role: cups
+      tags: cups
+
+- hosts: 
+    - dhcp_group
+  roles:
+    - role: kea-dhcp-ha
+      tags: kea-dhcp-ha
+
+
+- hosts: 
+    - dc_group
+  roles:
+    - role: samba-dc
+      tags: samba-dc
+    - role: additional-samba-dc
+      tags: additional-samba-dc
+    - role: rodc-samba-dc
+      tags: rodc-samba-dc
+
+
+- hosts:
+    - dns_group
+  roles:
+    - role: cached_dns
+      tags: cached_dns
+
+
+- hosts:
+    - logs_group
+  roles:
+    - role: logs_server
+      tags: logs_server
+
+
+- hosts:
+    - mail_group
+  roles:
+    - role: sogo
+      tags: sogo
+
+- hosts:
+    - srv_group
+  roles:
+    - role: repo
+      tags: repo
+
+- hosts:
+    - balancer_group
+  roles:
+    - role: ldap-balancer
+      tags: ldap-balancer
+
+- hosts:
+    - srv1c_group
+  roles:
+    - role: 1c_srv
+      tags: 1c_srv
+
+
+- hosts:
+    - nextcloud
+  roles:
+    - role: nextcloud
+      tags: nextcloud
+      when: next_password is not defined
+    - role: nextcloud-remove
+      tags: nextcloud-remove
+      when: nextcloud_remove is defined and nextcloud_remove == 'yes-i-want-remove-nextcloud'
+  tasks:
+    - name: change password to Nextcloud for user ncadmin
+      become: yes
+      become_method: su
+      become_user: apache2
+      become_flags: '-s /bin/sh'
+      shell: "env OC_PASS='{{ next_password }}' php{{ php_version }} -d memory_limit=512M /var/www/webapps/nextcloud/occ user:resetpassword --password-from-env ncadmin"
+      tags: nextcloud
+      when:
+        - next_password is defined
+        - nextcloud_remove is not defined
+
+- hosts:
+    - logs_group
+    - mail_group
+    - clients_group
+    - srv_group
+    - srv1c_group
+  roles:
+    - role: join_to_domain
+      tags: join_to_domain
+    - role: glpi-client
+      tags: glpi_client
+
+- hosts:
+    - glpi_group
+  roles:
+    - role: glpi
+      tags: glpi
