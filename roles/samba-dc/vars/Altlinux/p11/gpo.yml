@@ -1,0 +1,10 @@
+---
+admx:
+  - admc
+  - gpui
+  - admx-basealt
+  - admx-chromium
+  - admx-thunderbird
+  - admx-firefox
+  - admx-yandex-browser
+  - admx-msi-setup

@@ -1,0 +1,119 @@
+{
+  "Dhcp4": {
+
+ "ddns-send-updates": true,
+ "ddns-qualifying-suffix": "{{dc_realm}}",
+ "ddns-override-no-update": true,
+ "ddns-override-client-update": true,
+ //"ddns-use-conflict-resolution": false,
+ //"ddns-conflict-resolution-mode":  "no-check-with-dhcid",
+ "dhcp-ddns": {
+    "enable-updates": true,
+    "server-ip": "127.0.0.1"
+ },
+
+    "valid-lifetime": 86400,
+    "renew-timer": 43200,
+    "rebind-timer": 75600,
+      
+    "interfaces-config": {
+      "interfaces": [ "{{ansible_default_ipv4.interface}}" ]
+    },
+
+    "control-socket": {
+      "socket-type": "unix",
+      "socket-name": "/run/kea/kea4-ctrl-socket"
+    },
+
+    "lease-database": {
+      "type": "memfile",
+      "lfc-interval": 60
+    }, 
+
+    "hooks-libraries": [{
+        "library": "/usr/lib64/kea/hooks/libdhcp_lease_cmds.so",
+        "parameters": { }
+    },
+//    {
+//        "library": "/usr/lib64/kea/hooks/libdhcp_run_script.so",
+//        "parameters": {
+//          "name": "/etc/kea/dhcp-lease-logger.sh",
+//          "sync": true,
+//        }
+//     },
+
+    {
+        "library": "/usr/lib64/kea/hooks/libdhcp_ha.so",
+        "parameters": {
+
+    "high-availability": [
+      {
+        "this-server-name": "{{ inventory_hostname_short }}",
+        "mode": "{{kea_ha_mode}}",
+        "heartbeat-delay": 10000,
+        "max-response-delay": 30000,
+        "max-ack-delay": 500,
+        "max-unacked-clients": 5,
+        "max-rejected-lease-updates": 10,
+        
+        "peers": [
+          
+{% for host in groups['dhcp_group'] %}
+{
+         "name": "{{ hostvars[host].inventory_hostname_short }}",
+         "role": "{{ hostvars[host].kea_ha_role }}",
+         "url": "http://{{ hostvars[host].ansible_host }}:8001/",
+	  "auto-failover": true
+}
+{% if not loop.last %},{% endif %}
+{% endfor %}	
+	
+        ]
+      }
+    ]
+    }
+    }],
+
+
+    "subnet4": [
+      {
+        "id": 150,
+        "subnet": "{{dhcp_subnet}}",
+        "pools": [
+          {
+            "pool": "{{dhcp_pool}}"
+          }
+        ],
+
+        "reservations": [
+            {
+                "hw-address": "1a:1b:1c:1d:1e:1f",
+                "ip-address": "10.9.114.249"
+            } ],
+
+        "option-data": [
+          {
+            "name": "routers",
+            "data": "10.9.114.1"
+          },
+          {
+            "name": "domain-name-servers",
+            "data": "10.9.114.25"
+          },
+          {
+            "name": "domain-name",
+            "data": "{{dc_realm|lower}}"
+          },
+          {
+            "name": "domain-search",
+            "data": "{{dc_realm|lower}}"
+          },
+          {
+            "name": "time-servers",
+            "data": "10.9.114.10, 10.9.114.11"
+          }
+        ]
+      }
+    ]
+  }
+}

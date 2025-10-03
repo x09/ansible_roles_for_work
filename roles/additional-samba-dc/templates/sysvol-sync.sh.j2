@@ -1,0 +1,21 @@
+#!/bin/bash
+
+sysvol="{{ sysvol_path }}"
+
+#Определим кто PDC (2умя способами)
+pdc=()
+pdc[0]=$(host -t SRV _ldap._tcp.pdc._msdcs.{{dc_realm}} |  awk -F' ' '{print $8}' | sed -r 's/\.{{ dc_realm|replace('.', '\.') }}.$//;s/(.*)/\L\1/')
+pdc[1]=$(samba-tool fsmo show | grep PdcEmulationMasterRole | grep -oP 'CN=NTDS Settings,CN=[\w]+' | awk -F ',' '{print $2}' | sed -r 's/CN=//;s/(.*)/\L\1/')
+
+if [[ "${pdc[0]}" != "${pdc[1]}" ]]; then
+        echo -e 'Неоднозначность в определении PDC.\nВыход'
+        exit 255
+fi
+
+if [[ "${pdc[0]}" == "$(hostname -s)" ]]; then
+        echo -e 'Синхронизация на PDC не требуется.\nВыход'
+        exit 127
+fi
+ssh root@${pdc[0]} samba-tool ntacl sysvolreset
+rsync -XAavz root@${pdc[0]}://${sysvol} ${sysvol}
+if ! samba-tool ntacl sysvolcheck; then samba-tool ntacl sysvolreset; fi

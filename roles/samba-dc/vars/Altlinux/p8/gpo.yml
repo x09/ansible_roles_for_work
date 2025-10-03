@@ -1,0 +1,12 @@
+---
+#
+# 8SP
+
+admx:
+  - admc
+  - gpui
+  - admx-basealt
+  - admx-samba
+  - admx-chromium
+  - admx-firefox
+  - admx-msi-setup

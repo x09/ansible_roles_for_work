@@ -1,0 +1,23 @@
+#SPDX-License-Identifier: MIT-0
+---
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: kea,kea-hooks
+    state: present
+    update_cache: yes
+  tags: kea-pkg-install
+
+- name: Copy kea config template
+  template:
+    src: kea-dhcp4.conf.j2
+    dest: /etc/kea/kea-dhcp4.conf
+  tags: kea-config
+
+- name: Включение KEA-DHCP4
+  service:
+    name: kea-dhcp4
+    state: started
+    enabled: true
+
+

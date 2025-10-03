@@ -1,0 +1,7 @@
+---
+# handlers file for samba_dc_init
+
+- name: Проверка работы
+  ansible.builtin.command:
+    cmd: samba-tool domain info 127.0.0.1
+

@@ -1,0 +1,198 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for rodc-samba-dc
+#
+
+- name: Fail if not SAMBA_INTERNAL
+  ansible.builtin.fail:
+    msg: "This playbook for SAMBA_INTERNAL only"
+  when:  samba_dns_backend is not match ("SAMBA_INTERNAL",ignorecase="false")
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: task-samba-dc,chrony,samba
+    state: present
+    update_cache: yes
+  tags: task-samba-dc
+
+- name: Конфигурация NTP
+  ansible.builtin.command:
+    cmd: control chrony server
+
+- name: Включение NTP (режим server)
+  service:
+    name: chronyd
+    state: started
+    enabled: true
+
+- name: Формирование списка служб
+  service_facts:
+    
+- name: Конфигурация сервисов
+  service:
+    name: "{{item}}" 
+    state: stopped
+    enabled: false
+  when:
+    ansible_facts.services[item] is defined
+  with_items:
+    - smb.service
+    - nmb.service
+    - krb5kdc.service
+    - slapd.service
+    - bind.service
+  tags: serv
+
+- name: Подготовка небходимых файлов, папок
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: absent
+  with_items:
+    - /etc/samba/smb.conf
+    - /var/lib/samba
+    - /var/cache/samba
+    - /etc/krb5.keytab
+
+- name: Создание папки sysvol
+  ansible.builtin.file:
+    path: /var/lib/samba/sysvol
+    state: directory
+
+- name: ВРЕМЕННОЕ ИЗМЕНЕНИЕ /etc/resolv.conf (для присоединения к домену)
+  ansible.builtin.blockinfile:
+    path: /etc/resolv.conf
+    block: |
+      search {{dc_realm}}
+      nameserver {{dc1_ipv4}}
+    insertbefore: BOF
+
+- name: krb5.conf edit
+  ini_file:
+    path: "/etc/krb5.conf"
+    section: "{{item.section}}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - {section: "libdefaults", option: "dns_lookup_kdc", value: "true"}
+    - {section: "libdefaults", option: "dns_lookup_realm", value: "false"}
+    - {section: "libdefaults", option: "default_realm", value: "{{dc_realm|upper}}" }
+    - {section: "realms", option: "{{dc_realm|upper}}", value: "{" }
+    - {section: "realms", option: "kdc", value: "{{ inventory_hostname_short }}.{{dc_realm}}" }
+    - {section: "realms", option: "kdc", value: "dc1.{{dc_realm}}" }
+    - {section: "realms", option: "default_domain", value: "{{dc_realm|upper}}" }
+    - {section: "realms", option: "}", value: "" }
+  tags: domain_auth
+
+- name: Get ticket
+  ansible.builtin.shell:
+    cmd: "echo {{dc_administrator_password}} | kinit administrator@{{dc_realm|upper}}"
+  no_log: true
+
+- name: Add to domain as DS
+  ansible.builtin.command:
+    argv:
+      - "samba-tool"
+      - "domain"
+      - "join"
+      - "{{dc_realm}}"
+      - "RODC"
+      - "-Uadministrator"
+      - "--realm={{dc_realm}}"
+      - "--password={{dc_administrator_password}}"
+  no_log: true
+
+- name: Domain auth - Установка необходимых пакетов
+  apt_rpm:
+    pkg: task-auth-ad-winbind,gpupdate
+    state: present
+    update_cache: yes
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+    
+- name: Domain auth - smb.conf edit
+  ini_file:
+    path: /etc/samba/smb.conf  
+    section: global
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { option: "kerberos method", value: "dedicated keytab" }
+    - { option: "dedicated keytab file", value: "/etc/krb5.keytab" }
+    - { option: "template shell", value: "/bin/bash" }
+    - { option: "template homedir", value: "/home/{{dc_realm|upper}}/%U" }
+    - { option: "wins support", value: "no" }
+    - { option: "winbind use default domain", value: "yes" }
+    - { option: "winbind enum users", value: "no" }
+    - { option: "winbind enum groups", value: "no" }
+    - { option: "winbind refresh tickets", value: "yes" }
+    - { option: "dns forwarer", value: "8.8.8.8" }
+    - { option: "ad dc functional level", value: "{{samba_domain_and_forest_level}}" }
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+
+- name: Change nsswitch.conf
+  ansible.builtin.copy:
+    src: nsswitch.conf
+    dest: /etc/nsswitch.conf
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+
+- name: Change system-auth to winbind
+  ansible.builtin.command:
+    argv:
+      - "control"
+      - "system-auth"
+      - "winbind"
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+
+- name: Включение службы samba
+  service:
+    name: samba
+    state: restarted
+    enabled: true
+  tags: domain_auth
+
+- name: Keytab generate
+  ansible.builtin.command:
+    argv:
+      - "net"
+      - "ads"
+      - "keytab"
+      - "create"
+  ignore_errors: true
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+
+- name: Конфигурация сервисов (nscd)
+  service:
+    name: "nscd"
+    state: stopped
+    enabled: false
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: domain_auth
+
+- name: Add role
+  ansible.builtin.blockinfile:
+    path: /etc/role
+    block: |
+      Domain Users:users
+      Domain Admins:localadmins
+    insertbefore: BOF
+  when: domain_auth is defined and domain_auth is match("winbind",ignorecase="true")
+  tags: [ domain_auth,role ]
+
+- name: Последующие действия
+  ansible.builtin.debug:
+    msg: 
+      - "Убедитесь, что в /etc/resolv.conf будет указан единственный nameserver 127.0.0.1"
+      - "Сделать reboot"
+
+-
+
+
