@@ -1,0 +1,48 @@
+---
+# vars file for samba_dc_init
+
+#SAMBA_INTERNAL, BIND9_FLATFILE, BIND9_DLZ
+samba_dns_backend: "SAMBA_INTERNAL"
+
+#backend size
+#--backend-store=mdb --backend-store-size=8Gb
+samba_db_size: "8Gb"
+
+#LEVELS
+#2000,2003,2008,2008_R2,2016
+samba_domain_and_forest_level: "2016"
+#2019 is default
+samba_base_schema: "2019"
+
+extra_options: "--use-rfc2307"
+
+dc_administrator_login: "administrator"
+dc_administrator_password: "Qwerty1"
+dc_hostname: "dc1.test.alt"
+dc_realm: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\1') }}"
+dc_workgroup: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\2') }}"
+
+samba_dns_forward: "8.8.8.8"
+
+#yes - install GPO, any value - don't install
+GPO: "yes"
+
+# create reverse dns-zone
+rdns: "yes"
+rdns_zone: "114.9.10.in-addr.arpa"
+
+
+# enable domain auth (winbind/sssd)  on DC
+# for 1.7 winbind only
+domain_auth: "winbind"
+
+#BIND OPTIONS
+bind_global_forwarders: "8.8.8.8;"
+bind_allow_query: "192.168.0.0/24;"
+bind_allow_recursion: "192.168.0.0/24;"
+#disable ipv6 for bind
+ipv6_disable: "yes"
+
+additional_DC_ip: 
+  - { name: "dc2", value: "10.9.114.11" }
+  - { name: "rodc", value: "10.9.114.12" }
