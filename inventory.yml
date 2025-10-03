@@ -1,7 +1,7 @@
 all:
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-    ansible_ssh_private_key_file: "altdomain"
+    ansible_ssh_private_key_file: "/home/anton/Work/altdomain-stand/altdomain"
     ansible_user: root
 
     dc1_ipv4: "10.9.114.10"
