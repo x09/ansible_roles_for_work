@@ -1,0 +1,9 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for nextcloud
+
+php_version: 8.3
+nextcloud_root: "/var/www/webapps/nextcloud/"
+nextcloud_config: "/var/www/webapps/nextcloud/config/config.php"
+
+

@@ -1,0 +1,295 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for nextcloud
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+
+- name: install Nextcloud packages
+  apt_rpm: name={{ item }} state=installed update_cache=True
+  with_items:
+    - apache2-base
+    - apache2-mod_php{{ php_version }}
+    - apache2-mod_ssl
+    - mariadb-server
+    - nextcloud
+    - nextcloud-apache2
+    - php{{ php_version }}-pcntl
+    - php{{ php_version }}-pdo_mysql
+    - php{{ php_version }}-opcache
+    - php{{ php_version }}-memcached
+    - memcached
+    - python3-module-pymysql
+    - pwgen
+    - curl
+
+- name: start MariaDB service
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+# apache
+- name: check certificate file
+  stat: path=/var/lib/ssl/certs/httpd2.cert
+  register: apache_cert_file
+  no_log: True
+
+- name: generate certificate file
+  shell: /usr/bin/httpd2-cert-sh generate httpd2
+  when: apache_cert_file.stat.exists == False
+
+- name: enable Apache2 module filter
+  apache2_module: state=present name=filter
+
+- name: enable Apache2 module ssl
+  apache2_module: state=present name=ssl
+
+- name: enable Apache2 module rewrite
+  apache2_module: state=present name=rewrite
+
+- name: enable Apache2 module headers
+  apache2_module: state=present name=headers
+
+- name: enable Apache2 module env
+  apache2_module: state=present name=env
+
+- name: enable Apache2 module dir
+  apache2_module: state=present name=dir
+
+- name: enable Apache2 module mime
+  apache2_module: state=present name=mime
+
+- name: enable Apache2 module mod_php
+  apache2_module: state=present name=mod_php{{ php_version }} identifier=php_module
+
+- name: disable Apache2 module mod_php7
+  apache2_module: state=absent name=mod_php7 identifier=php7_module
+
+- name: enable HTTPS (default_https)
+  command: a2ensite default_https
+  register: cmd1_result
+  no_log: True
+  changed_when: cmd1_result.stdout != "Site config .confThis site is already enabled!"
+
+- name: enable HTTPS (https)
+  command: a2enport https
+  register: cmd1_result
+  no_log: True
+  changed_when: cmd1_result.stdout != "Port config https.conf is already enabled!"
+
+- name: configure port 80
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/ports_all.conf
+    regexp: '^NameVirtualHost *:80$'
+    line: 'NameVirtualHost *:80'
+    state: present
+    insertafter: EOF
+
+- name: configure port 443
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/ports_all.conf
+    regexp: '^NameVirtualHost *:443$'
+    line: 'NameVirtualHost *:443'
+    state: present
+    insertafter: EOF
+
+- name: change example server name
+  replace:
+    path: /etc/httpd2/conf/sites-available/default_https.conf
+    regexp: 'www\.example\.com'
+    replace: 'localhost.localdomain'
+
+- name: change _default_ placeholder for https
+  replace:
+    path: /etc/httpd2/conf/sites-available/default_https.conf
+    regexp: '_default_'
+    replace: '*'
+
+- name: set port 80 for default server
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/default.conf
+    regexp: '^<VirtualHost \*>'
+    line: '<VirtualHost *:80>'
+
+- name: add RewriteEngine On
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/default.conf
+    regexp: '^RewriteEngine On$'
+    line: 'RewriteEngine On'
+    state: present
+    insertbefore: '^<\/VirtualHost>'
+
+- name: add RewriteCond
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/default.conf
+    regexp: '^RewriteCond'
+    line: 'RewriteCond %{HTTPS} !=on'
+    state: present
+    insertbefore: '^<\/VirtualHost>'
+
+- name: add RewriteRule
+  lineinfile:
+    dest: /etc/httpd2/conf/sites-available/default.conf
+    regexp: '^RewriteRule'
+    line: 'RewriteRule ^/(.*) https://%{HTTP_HOST}/$1 [R,L]'
+    state: present
+    insertbefore: '^<\/VirtualHost>'
+
+- name: detect PHP settings
+  shell: rpm -ql apache2-mod_php{{ php_version }} | grep php.ini
+  register: php_ini
+  no_log: True
+  changed_when: False
+
+- name: configure PHP memory_limit setting
+  ini_file:
+    path: "{{ php_ini.stdout }}"
+    section: PHP
+    option: memory_limit
+    value: "512M"
+  no_log: True
+
+- name: configure PHP upload_max_filesize setting
+  ini_file:
+    path: "{{ php_ini.stdout }}"
+    section: PHP
+    option: upload_max_filesize
+    value: "32M"
+  no_log: True
+
+- name: configure PHP max_input_vars setting
+  ini_file:
+    path: "{{ php_ini.stdout }}"
+    section: PHP
+    option: max_input_vars
+    value: "5000"
+  no_log: True
+
+- name: configure opcache
+  replace:
+    path: "/usr/share/php/{{ php_version }}/extconf/opcache/config"
+    regexp: '^opcache\.interned_strings_buffer\s+=\s+\d+'
+    replace: "opcache.interned_strings_buffer = 10"
+  no_log: True
+  tags: opcache
+
+- name: reload Apache2 configuration
+  command: service httpd2 condreload
+  changed_when: False
+
+- name: start Apache service
+  service: name=httpd2 state=started enabled=yes
+
+- name: detect HTTP DocumentRoot
+  shell: "awk '/^[[:space:]]*DocumentRoot/ {print \"DocumentRoot for http: \" $2}' /etc/httpd2/conf/sites-enabled/000-default.conf"
+  changed_when: False
+
+- name: detect HTTPS DocumentRoot
+  shell: "awk '/^[[:space:]]*DocumentRoot/ {print \"DocumentRoot for https: \" $2}' /etc/httpd2/conf/sites-enabled/000-default_https.conf"
+  changed_when: False
+
+# apache end
+
+
+- name: check if database 'nextcloud' exists
+  mysql_db:
+    name: nextcloud
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    state: present
+
+- name: generate password for Nextcloud
+  shell: pwgen 16 1
+  register: nextcloud_password
+  changed_when: False
+  no_log: True
+
+- name: create database user 'nextcloud'
+  mysql_user:
+    name: nextcloud
+    password: "{{ nextcloud_password.stdout }}"
+    priv: 'nextcloud.*:ALL'
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: True
+
+- name: check for config file "{{ nextcloud_config }}"
+  stat:
+    path: "{{ nextcloud_config }}"
+  register: nc_config
+  no_log: True
+
+- name: generate configuration by install script from nextcloud
+  become: yes
+  become_method: su
+  become_user: apache2
+  become_flags: '-s /bin/sh'
+  shell: |
+       php{{ php_version }} -d memory_limit=512M \
+        /var/www/webapps/nextcloud/occ \
+        maintenance:install \
+        --database "mysql" \
+        --database-name "nextcloud" \
+        --database-user "nextcloud" \
+        --database-pass '{{ nextcloud_password.stdout }}' \
+        --database-host "localhost" \
+        --admin-user "ncadmin" \
+        --admin-pass '{{ nextcloud_password.stdout }}' ||:
+  when: nc_config.stat.exists == False
+
+- name: get full host name
+  shell: hostname -f
+  register: full_hostname
+  no_log: True
+  changed_when: False
+
+- name: add full hostname to config {{ nextcloud_config }}
+  lineinfile:
+    dest: "{{ nextcloud_config }}"
+    regexp: '    1 => .*'
+    line: "    1 => '{{ full_hostname.stdout }}',"
+    state: present
+    insertafter: '^.*0 =>'
+
+- name: set memcached settings to config {{ nextcloud_config }}
+  blockinfile:
+    path: "{{ nextcloud_config }}"
+    marker: "// Ansible"
+    block: |+
+      'memcache.local' => '\OC\Memcache\Memcached',
+      'memcache.distributed' => '\OC\Memcache\Memcached',
+      'memcached_servers' => array(
+        array('localhost', 11211),
+      ),
+    insertbefore: "^\\);"
+  tags: new
+
+- name: install Cronjob
+  ansible.builtin.cron:
+    name: "Nextcloud Cronjob"
+    minute: "*/10"
+    user: "apache2"
+    job: "{{php_version}} {{nextcloud_root}}cron.php"
+  tags: new
+
+
+- name: reload Apache2 configuration
+  command: service httpd2 condreload
+  changed_when: False
+
+- name: one try to open web page
+  shell: "curl -s --insecure https://localhost/nextcloud &>/dev/null ||:"
+  no_log: True
+  changed_when: False
+
+- name: set owner for nextcloud apps
+  file:
+    path: /var/www/webapps/nextcloud/apps/
+    owner: apache2
+    recurse: true 
+  tags: setowner
+  notify: restart_app
+
