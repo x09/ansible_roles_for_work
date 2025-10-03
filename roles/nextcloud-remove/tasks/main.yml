@@ -1,0 +1,53 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for nextcloud-remove
+
+- name: check var
+  fail:
+    msg: "Add var nextcloud-remove=yes-i-want-remove-nextcloud"
+  when: nextcloud_remove | default('undefined') != "yes-i-want-remove-nextcloud"
+
+- name: drop database 'nextcloud'
+  mysql_db:
+    name: nextcloud
+    state: absent
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: True
+  ignore_errors: true
+
+- name: delete database user 'nextcloud'
+  mysql_user:
+    name: nextcloud
+    state: absent
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: True
+  ignore_errors: true
+
+- name: remove configuration file for Nextcloud "{{ nextcloud_config }}"
+  file:
+    path: "{{ nextcloud_config }}"
+    state: absent
+  no_log: True
+  ignore_errors: true
+
+- name: remove configuration file for Apache "{{ nextcloud_apache_config }}"
+  file:
+    path: "{{ nextcloud_apache_config }}"
+    state: absent
+  no_log: True
+  ignore_errors: true
+
+- name: remove content from Nexcloud data directory "{{ nextcloud_data_dir }}"
+  shell: /bin/rm -rf "{{ nextcloud_data_dir }}"/*
+  no_log: True
+  ignore_errors: true
+
+- name: remove Nextcloud packages
+  apt_rpm: name={{ item }} state=removed update_cache=True
+  with_items:
+    - nextcloud
+    - nextcloud-apache2
+  no_log: True
+  ignore_errors: true
+
+

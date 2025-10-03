@@ -1,0 +1,120 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for glpi-client
+
+
+- name: Import OS specific vars
+  include_vars: "{{ ansible_distribution }}/main.yml"
+
+- name: install glpi-client for ALT OS
+  ansible.builtin.include_tasks: alt.yml
+  when: ansible_distribution == "AltLinux"
+
+  # for 1.8 tested only
+- name: install glpi-client for Astra
+  ansible.builtin.include_tasks: astra.yml
+  when: ansible_distribution == "Astra Linux" and  ansible_distribution_release == "1.8_x86-64"
+
+- name: install glpi-client for RedOS
+  ansible.builtin.include_tasks: red.yml
+  when: ansible_distribution == "Red"
+
+- name: install glpi-client for Debian and clones
+  ansible.builtin.include_tasks: deb.yml
+  when: ansible_distribution in deb_clone
+  
+- name: install glpi-client for RedHat and clones
+  ansible.builtin.include_tasks: rh.yml
+  when: ansible_distribution in rh_clone
+
+- name: start services
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - glpi-agent
+
+
+#------------------
+
+- name: install packages for ALT OS
+  apt_rpm: 
+    name: "{{ item }}"
+    state: installed
+    update_cache: true
+  with_items:
+    - glpi-agent
+  when:  ansible_distribution == "Altlinux" 
+
+- name: install packages for RED OS
+  dnf: 
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - glpi-agent
+  when: ansible_distribution == "RED"
+
+- name: install packages for CentOS/RedHat
+  dnf:
+    name: "{{item}}"
+    state: installed
+  with_items:
+    - perl
+    - patch
+  when:  ansible_distribution in rh_clone
+
+- name: install packages for Ubuntu/Astra
+  apt:
+    name: "{{item}}"
+    state: latest
+    update_cache: yes
+  with_items:
+    - perl
+  when: ansible_distribution in deb_clone
+ 
+- name: copy agent install file to OS (RH-based, DEB-based)
+  copy:
+    src: files/glpi-agent-1.12-linux-installer.pl
+    dest: /root/glpi-agent-1.12-linux-installer.pl
+    mode: 0755
+    owner: root
+    group: root
+  when:
+    - ansible_distribution in all_distros
+    - ansible_distribution != "RED"
+
+#- name: copy patch file for RED
+#  copy:
+#    src: files/redos.patch
+#    dest: /root/redos.patch
+#    mode: 0644
+#    owner: root
+#    group: root
+#  when: ansible_distribution == 'RED'
+
+#- name: apply patch for RED
+#  shell: 'patch /root/glpi-agent-1.12-linux-installer.pl < /root/redos.patch'
+#  when: ansible_distribution == 'RED'
+
+- name: run agent install script
+  command:
+    cmd: "{{item}}"
+  with_items:
+    - "/root/glpi-agent-1.12-linux-installer.pl --type=all --install --server=http://{{glpi_server_ip}}/glpi/plugins/glpiinventory/"
+    - "glpi-agent --force"
+  when:
+    - ansible_distribution in all_distros
+    - ansible_distribution != "RED"
+
+- name: gpli-agent configuration for ALT
+  replace:
+    path: /etc/glpi-agent/agent.cfg
+    regexp: '^# Target definition options'
+ #   regexp: '^#server\s+=\s+.*$'
+    replace: "server = http://{{glpi_server_ip}}/glpi/plugins/glpiinventory/"
+    backup: yes
+  when:  ansible_distribution == "Altlinux" or ansible_distribution == "RED"
+
+
+

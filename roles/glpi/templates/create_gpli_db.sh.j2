@@ -1,0 +1,8 @@
+#!/bin/bash
+
+PASSWD="{{glpi_mysql_password}}"
+CREATE_DATABASE="CREATE DATABASE IF NOT EXISTS glpi;"
+CREATE_USER="DROP USER IF EXISTS 'dbuser'@'%'; CREATE USER dbuser@'%' IDENTIFIED BY '$PASSWD';"
+GRANT_PRIV="GRANT ALL PRIVILEGES ON glpi.* TO 'dbuser'@'%'; FLUSH PRIVILEGES;"
+
+/usr/bin/mysql -u root -p"$PASSWD" -e "$CREATE_DATABASE$CREATE_USER$GRANT_PRIV"

@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for nextcloud-remove
+
+nextcloud_config: /var/www/webapps/nextcloud/config/config.php
+nextcloud_apache_config: /etc/httpd2/conf/sites-enabled/nextcloud.conf
+nextcloud_data_dir: /var/www/webapps/nextcloud/data
+

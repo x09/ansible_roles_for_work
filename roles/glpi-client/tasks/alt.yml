@@ -1,0 +1,18 @@
+---
+- name: install packages for ALT OS
+  apt_rpm:
+    name: "{{ item }}"
+    state: installed
+    update_cache: true
+  with_items:
+    - glpi-agent
+
+- name: gpli-agent configuration for ALT
+  replace:
+    path: /etc/glpi-agent/agent.cfg
+    regexp: '^# Target definition options'
+    replace: "server = http://{{glpi_server_ip}}/glpi/plugins/glpiinventory/"
+    backup: yes
+
+
+

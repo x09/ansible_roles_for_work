@@ -1,0 +1,40 @@
+---
+- name: install packages for Astra
+  apt:
+    name: "{{item}}"
+    state: latest
+    update_cache: yes
+  with_items:
+    - perl
+    - patch
+
+- name: copy agent install and patch file to OS 
+  copy:
+    src: "files/{{item.name}}"
+    dest: "/root/{{item.name}}"
+    mode: "{{item.mode}}"
+    owner: root
+    group: root
+  with_items:
+    - { name: 'glpi-agent-1.12-linux-installer.pl', mode: '0755' }
+    - { name: 'libnet-ssh2-perl_0.73-1+b1_amd64.deb', mode: '0600' } 
+    - { name: 'astra.patch', mode: '0644' }
+
+#- name: copy patch file for ASTRA
+#  copy:
+#    src: "files/astra.patch"
+#    dest: "/root/astra.patch"
+#    mode: 0644
+#    owner: root
+#    group: root
+
+- name: apply patch for ASTRA
+  shell: 'patch /root/glpi-agent-1.12-linux-installer.pl < /root/astra.patch'
+
+- name: run agent install script
+  command:
+    cmd: "{{item}}"
+  with_items:
+    - "/root/glpi-agent-1.12-linux-installer.pl --type=all --install --server=http://{{glpi_server_ip}}/glpi/plugins/glpiinventory/"
+    - "glpi-agent --force"
+

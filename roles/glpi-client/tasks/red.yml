@@ -1,0 +1,17 @@
+---
+- name: install packages for RED OS
+  dnf: 
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - glpi-agent
+
+- name: gpli-agent configuration for RED OS
+  replace:
+    path: /etc/glpi-agent/agent.cfg
+    regexp: '^# Target definition options'
+    replace: "server = http://{{glpi_server_ip}}/glpi/plugins/glpiinventory/"
+    backup: yes
+
+
+

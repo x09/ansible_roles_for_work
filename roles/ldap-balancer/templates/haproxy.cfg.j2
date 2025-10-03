@@ -1,0 +1,49 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    pidfile     /run/haproxy.pid
+    stats socket /var/lib/haproxy/stats
+    stats timeout 30s
+    user _haproxy
+    group _haproxy
+    daemon
+    maxconn 10000
+
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    option dontlognull
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+    retries 3
+    option redispatch
+
+frontend ldap_frontend
+    bind *:389
+    default_backend ldap_servers
+
+frontend ldaps_frontend
+    bind *:636
+    default_backend ldaps_backend
+
+backend ldaps_backend
+    mode tcp
+    balance roundrobin
+{% for host in groups['dc_group'] %}
+    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:636 check port 636 inter 2000 rise 2 fall 3
+{% endfor %}
+
+
+backend ldap_servers
+    mode tcp
+    option ldap-check 
+    balance roundrobin
+{% for host in groups['dc_group'] %}
+    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:389 check port 389 inter 3000 rise 2 fall 3 
+{% endfor %}
+
+

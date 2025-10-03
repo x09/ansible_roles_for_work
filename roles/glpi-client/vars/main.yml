@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for glpi-client
+
+glpi_server_ip: "10.9.114.16"
+alt_os: ['Altlinux']
+red_os:  ["RED"]
+astra_os: ['Astra Linux']
+rh_clone: [ "CentOS", "RedHat", "Fedora"]
+deb_clone:  [  "Ubuntu","Debian", "Linuxmint" ]
+
+all_distros: "{{ rh_clone + deb_clone + red_os + astra_os + alt_os }}"
+
+

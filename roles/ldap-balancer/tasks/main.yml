@@ -1,0 +1,48 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for ldap-balancer
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: haproxy,keepalived
+    state: present
+    update_cache: yes
+
+- name: Настройка resolv.conf
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: |
+      search {{ dc_realm }}
+      nameserver 10.9.114.25
+  loop: "{{ resolv_files }}"
+
+- name: Конфиг haproxy.cfg
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+  tags: haproxy
+
+- name: Конфиг keepalived.cfg
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+
+- name: Поддержка двух IP адресов
+  lineinfile:
+    path: "/etc/net/sysctl.conf"
+    insertafter: EOF
+    line: "net.ipv4.ip_nonlocal_bind = 1"
+  tags: two_ip
+
+- name: Включение двух IP адресов
+  command:
+    cmd: "sysctl -p"
+  tags: two_ip
+  notify: restart services
+
+

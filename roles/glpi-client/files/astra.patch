@@ -1,0 +1,13 @@
+242a243,244
+>     # Astra
+>     [ '/etc/astra_version',    'Astra',                     '([\d\.]+)',             '%s',    'DebDistro' ],
+290c292
+<     DebDistro   => qr/debian|ubuntu/i,
+---
+>     DebDistro   => qr/astra|debian|ubuntu/i,
+1286a1289
+> 	my $astra_deb_custom = '/root/libnet-ssh2-perl_0.73-1+b1_amd64.deb';
+1288c1291
+<         my $command = "apt @options install @debs 2>/dev/null";
+---
+>         my $command = "apt @options install @debs $astra_deb_custom 2>/dev/null";

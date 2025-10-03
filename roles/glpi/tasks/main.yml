@@ -1,0 +1,128 @@
+#SPDX-License-Identifier: MIT-0
+---
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: install  packages
+  apt_rpm: 
+    name: "{{ item }}"
+    state: installed
+    update_cache: true
+  with_items:
+    - apache2-base
+    - apache2-mod_php{{ php_version }}
+    - apache2-mod_ssl
+    - mariadb-server
+    - php{{ php_version }}-pdo_mysql
+    - php{{ php_version }}-memcached
+    - glp
+    - glpi-apache2
+    - glpi-php{{ php_version }}
+
+- name: start services
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - mysqld
+    - httpd2
+
+- name: mariadb secure install
+  expect:
+    command: /usr/bin/mysql_secure_installation
+    responses:
+        '(?i)Enter current password for root (enter for none)': ""
+        '(?i)Enable unix_socket authentication?': 'y'
+        '(?i)Switch to unix_socket authentication': 'y'
+        '(?i)Change the root password?': 'y'
+        '(?i)New password:': "{{glpi_mysql_password}}"
+        '(?i)Re-enter new password:': "{{glpi_mysql_password}}"
+        '(?i)Remove anonymous users?': 'y'
+        '(?i)Disallow root login remotely?': 'y'
+        '(?i)Remove test database and access to it?': 'y'
+        '(?i)Reload privilege tables now?': 'y'
+    timeout: 30
+
+- name: Copy mysql db create script
+  template:
+    src: create_gpli_db.sh.j2
+    dest: "/root/create_gpli_db.sh"
+    mode: 0755
+    owner: root
+    group: root
+
+- name: Run create_gpli_db script
+  command:
+    cmd: cmd/root/create_gpli_db.sh
+
+
+- name: configure mysqld
+  command:
+    cmd: "{{item}}"
+  with_items:
+    - "control mysqld server"
+
+- name: start MariaDB service
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+- name: detect PHP settings
+  shell: rpm -ql apache2-mod_php{{ php_version }} | grep php.ini
+  register: php_ini
+  no_log: True
+  changed_when: False
+
+- name: php.ini edit
+  ini_file:
+    path: "{{php_ini.stdout}}"
+    section: "{{item.section}}"
+    option:  "{{item.option}}"
+    value:  "{{item.value}}"
+  with_items:
+    - { section: "Session", option: "session.cookie_httponly", value: "on"  }
+    - { section: "Session", option: "session.cookie_secure", value: "on"  }
+
+- name: start httpd2 service
+  service:
+    name: httpd2
+    state: restarted
+    enabled: yes
+    
+- name: Install glpi
+  ansible.builtin.command:
+    cmd: "php{{php_version}} /var/www/webapps/glpi/bin/console db:install --default-language=ru_RU --db-name=glpi --db-user=dbuser --db-password='{{glpi_mysql_password}}' --db-host=127.0.0.1 --no-telemetry -n"
+  become: true
+  become_method: su
+  become_user: apache2
+  become_flags: '-s /bin/sh'
+  no_log: true
+
+- name: glpi-inventory plugin install
+  ansible.builtin.unarchive:
+    src: files/glpi-glpiinventory-1.5.0.tar.bz2
+    dest: /var/www/webapps/glpi/plugins/
+    owner: apache2
+    group: apache2
+
+
+- name: information
+  ansible.builtin.debug:
+    msg:
+      - "Логины по умолчнию"
+      - "glpi/glpi для учетной записи администратора;"
+      - "tech/tech для технической учетной записи;"
+      - "normal/normal для обычной учетной записи;"
+      - "post-only/postonly только для подачи заявок."
+      - "Следующие шаги"
+      - "Включить glpi-glpiinventory в веб-интерфейсе (Главная → Настройки → Плагины)"
+      - "Для настройки плагина необходимо перейти в раздел Администрирование - GLPI Inventory - Настройки - Модули агента"
+      - "и включить следующие модули: Сетевая инвентаризация (SNMP), Сетевое обнаружение, - нажав на кнопку “Обновление” для каждого модуля."
+      - "Далее перейдем в раздел “Администрирование” → “Оборудование”, включить инвентаризацию и после сохраним изменения"
+
+

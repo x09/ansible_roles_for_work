@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for ldap-balancer
+
+- name: restart services
+  service:
+    name: "{{item}}"
+    enabled: true
+    state: restarted
+  with_items:
+    - haproxy
+    - keepalived
+
