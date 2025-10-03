@@ -1,0 +1,42 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for cups
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: cups,samba-krb5-printing,samba,chrony,task-auth-ad-sssd
+    state: present
+    update_cache: yes
+
+- name: Проверка присутствия в домене
+  ansible.builtin.command:
+    argv:
+      - 'net'
+      - 'ads'
+      - 'testjoin'
+  register: join_status
+  when: domain_join_check is defined and domain_join_check|lower == "yes"
+
+- name: Отладка
+  debug:
+    msg: "{{join_status.stdout}}"
+
+- name: Проверка статуса соединения
+  fail:
+    msg: "Машина не в домене. Остановка. (для игнорирования используйте domain_join_check: yes)"
+  when:
+    - domain_join_check is defined and domain_join_check|lower == "yes"
+    - join_status.stdout != 'Join is OK'
+
+- name: smb configuration
+  ini_file:
+    path: "/etc/samba/smb.conf"
+    section: "global"
+    option: "{{item.option}}"
+    value: "{{item.value}}"
+  with_items:
+    - { option: "load printers", value: "yes" }
+    - { option: "printing", value: "CUPS" }
+  notify: restart services
+
+
