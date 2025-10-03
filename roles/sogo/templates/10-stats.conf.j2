@@ -1,0 +1,12 @@
+service stats {
+    unix_listener stats-reader {
+        user = mail
+        group = mail
+        mode = 0660
+    }
+    unix_listener stats-writer {
+        user = mail
+        group = mail
+        mode = 0660
+    }
+}

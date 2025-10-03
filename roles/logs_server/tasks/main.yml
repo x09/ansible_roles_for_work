@@ -1,0 +1,120 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for logs_server
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: systemd-journal-remote,openssl
+    state: present
+    update_cache: yes
+
+- name: Create journal folder
+  ansible.builtin.file:
+    path: /var/log/journal/remote
+    group: systemd-journal-remote
+    owner: systemd-journal-remote
+    state: directory
+
+- name: Create folders for certs
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: directory
+  with_items:
+    - /etc/pki/ssl/private
+    - /etc/pki/ssl/certs
+    - /etc/pki/ssl/ca
+
+# openssl genrsa -out /etc/pki/ssl/ca/trusted.key 4096
+- name: Generate CA cert
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "genrsa"
+      - "-out"
+      - "/etc/pki/ssl/ca/trusted.key"
+      - "4096"
+
+#  openssl req -x509 -new -nodes -key /etc/pki/ssl/ca/trusted.key -sha256 -days 1825 -out /etc/pki/ssl/ca/trusted.crt -subj "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=CA-logs"
+- name: Generate cert for CA
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "req"
+      - "-x509"
+      - "-new"
+      - "-nodes"
+      - "-key"
+      - "/etc/pki/ssl/ca/trusted.key"
+      - "-sha256"
+      - "-days"
+      - "4096"
+      - "-out"
+      - "/etc/pki/ssl/ca/trusted.crt"
+      - "-subj"
+      - "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=CA-logs"
+
+# openssl genrsa -out /etc/pki/ssl/private/journal-remote.key 2048
+- name: Generate server key
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "genrsa"
+      - "-out"
+      - "/etc/pki/ssl//private/journal-remote.key"
+      - "2048"
+
+     
+- name: Generate CSR
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "req"
+      - "-new"
+      - "-key"
+      - "/etc/pki/ssl/private/journal-remote.key"
+      - "-out"
+      - "/etc/pki/ssl/certs/journal-remote.csr"
+      - "-subj"
+      - "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=logs"
+
+- name: Generate server side cert
+  ansible.builtin.command:
+    argv:
+      - "openssl"
+      - "x509"
+      - "-req"
+      - "-in"
+      - "/etc/pki/ssl/certs/journal-remote.csr"
+      - "-CA"
+      - "/etc/pki/ssl/ca/trusted.crt"
+      - "-CAkey"
+      - "/etc/pki/ssl/ca/trusted.key"
+      - "-CAcreateserial"
+      - "-out"
+      - "/etc/pki/ssl/certs/journal-remote.crt"
+      - "-days"
+      - "4096"
+      - "-sha256"
+
+- name: Set permissions for cert files
+  ansible.builtin.file:
+    path: "{{item}}"
+    owner: "systemd-journal-remote"
+    group: "systemd-journal-remote"
+    mode: '0600'
+  with_items:
+    - /etc/pki/ssl/private/journal-remote.key
+    - /etc/pki/ssl/certs/journal-remote.crt
+
+- name: Запуск сервиса systemd-journal-remote
+  service:
+    name: "systemd-journal-remote.service"
+    state: started
+    enabled: true
+
+

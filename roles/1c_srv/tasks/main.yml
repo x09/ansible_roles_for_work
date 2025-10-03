@@ -1,0 +1,139 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for 1c_srv
+
+- name: Формирование списка служб
+  service_facts:
+
+- name: Выключение сервиса СУБД если pg1c_overwrite=yes
+  service:
+    name: postgresql
+    state: stopped
+  when:
+    - pg1c_overwrite == "yes"
+    - ansible_facts.services["postgresql"] is defined
+
+- name: Очистка каталога для БД
+  file:
+    state: absent
+    path: /var/lib/pgsql/data
+  when: pg1c_overwrite == "yes"
+
+- name: Проверка существования папки для БД
+  stat:
+    path: /var/lib/pgsql/data
+  register: pgsql_data
+
+- debug:
+    msg:
+      - "Сценарий прерван по причине:" 
+      - "- существует /var/lib/pgsql/data"
+      - "- не разрешена перезапись - pg1c_overwrite=no"
+  when: pgsql_data.stat.exists
+
+- meta: end_play
+  when: pgsql_data.stat.exists
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Добавление custom репо
+  copy:
+    src: custom.list
+    dest: /etc/apt/sources.list.d/custom.list
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: fontconfig,1c-enterprise-{{version_1c}}-server,1c-enterprise-{{version_1c}}-common,libImageMagick6.7,logrotate,postgresql15-1C-server,postgresql15-1C-contrib,1c-preinstall-full
+    state: present
+    update_cache: yes
+
+- name: Настройка ротации логов
+  copy:
+    dest: /etc/logrotate.d/srv1cv8
+    content: |
+      /var/lib/1cv8/.1cv8/1C/1cv8/reg_1541/*/1Cv8Log {
+       notifempty
+       missingok
+       rotate 1
+       size=500M
+       nocompress
+      }
+
+
+- name: Register systemd link
+  command:
+    cmd: "systemctl link /opt/1cv8/{{arch_1c}}/{{version_1c}}/srv1cv8-{{version_1c}}@.service"
+
+- name: Подготовка к развертывания БД
+  ansible.builtin.copy:
+    dest: /tmp/pgpw.dat
+    content: "{{db_1c_password}}"
+    owner: postgres
+    group: postgres
+    mode: '0600'
+
+- name: Начальная конфигурация БД
+  ansible.builtin.command:
+    cmd: "initdb -A trust --pgdata=/var/lib/pgsql/data --locale=ru_RU.UTF-8 --pwfile=/tmp/pgpw.dat"
+  become: true
+  become_method: su
+  become_user: postgres
+  become_flags: '-s /bin/sh'
+
+- name: Удаление ненужных файлов
+  ansible.builtin.file:
+    path: /tmp/pgpw.dat
+    state: absent
+
+- name: Бэкап дефолтных значений /var/lib/pgsql/data/pg_hba.conf
+  replace:
+    path: /var/lib/pgsql/data/pg_hba.conf
+    regexp: '^(host\s+all.*trust$)'
+    replace: '#\1'
+  tags: pg_hba
+
+- name: Установка новых значений /var/lib/pgsql/data/pg_hba.conf
+  lineinfile:
+    path: /var/lib/pgsql/data/pg_hba.conf
+    firstmatch: true
+    insertbefore: "^#host.*trust"
+    line: "host\tall\t\tall\t\t{{item}}\t\tmd5"
+  with_items:
+    - "0.0.0.0/0"
+    - "127.0.0.1/32"
+    - "::1/128"
+  tags: pg_hba
+
+- name: Редактирование /var/lib/pgsql/data/postgresql.conf
+  replace:
+    path: /var/lib/pgsql/data/postgresql.conf
+    regexp: "^(#listen_addresses = 'localhost')"
+    replace: "listen_addresses = '*'"
+    backup: yes
+  tags: postgresql_conf
+
+- name: Запуск службы БД
+  service:
+    name: postgresql
+    state: restarted
+    enabled: true
+
+
+- name: Памятка
+  debug:
+    msg:
+      - "На КД нужно выполнить эти команды (для хоста srv1c.test.alt)"
+      - "samba-tool user add server1c --random-password"
+      - "samba-tool user rename server1c --upn usr1cv8/srv1c.{{dc_realm}}@{{dc_realm|upper}}"
+      - "samba-tool user setexpiry server1c --noexpiry"
+      - "samba-tool spn add usr1cv8/srv1c.{{dc_realm}} server1c"
+      - "samba-tool domain exportkeytab /root/usr1cv8.keytab --principal=usr1cv8/srv1c.{{dc_realm}}"
+      - "После чего скопировать файл /root/usr1cv8.keytab на сервер 1с"
+      - "chown usr1cv8:grp1cv8 /opt/1cv8/{{arch_1c}}/{{version_1c}}/usr1cv8.keytab"
+      - "chmod 0600 /opt/1cv8/{{arch_1c}}/{{version_1c}}/usr1cv8.keytab"
+  tags: domain_1c
+  notify: Запуск службы 1C
+

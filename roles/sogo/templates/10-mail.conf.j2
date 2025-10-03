@@ -1,0 +1,16 @@
+mail_home=/var/mail/%d/%n
+mail_location =  maildir:/var/mail/%d/%n:UTF-8:INBOX=/var/mail/%d/%n/Inbox
+
+namespace inbox {
+  inbox = yes
+}
+
+mail_uid = mail
+mail_gid = mail
+first_valid_uid = 5
+first_valid_gid = 5
+
+protocol !indexer-worker {
+}
+
+mbox_write_locks = fcntl

@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for 1c_srv
+
+- name: Запуск службы 1C
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: true
+  with_items:
+    - "srv1cv8-{{version_1c}}@default"
+
+

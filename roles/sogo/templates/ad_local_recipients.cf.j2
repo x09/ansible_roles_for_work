@@ -1,0 +1,12 @@
+version = 3
+server_host = {{sogo_maildomain}}:389
+search_base = {{sogo_postfix_search_base}}
+scope = sub
+query_filter = (&(|(mail=%s)(otherMailbox=%u@%d))(sAMAccountType=805306368))
+result_filter = %s
+result_attribute = mail
+special_result_attribute = member
+
+bind = yes
+bind_dn = {{sogo_postfix_vmail_basedn}}
+bind_pw = {{sogo_vmail_password}}

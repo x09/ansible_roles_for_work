@@ -1,0 +1,54 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for join_to_domain
+
+#- name: Check network services status
+#  ansible.builtin.service_facts:
+
+- name: Установка необходимых пакетов
+  dnf:
+    name: "{{ join_packages }}"
+    state: present
+
+- name: Remove old keytab
+  ansible.builtin.file:
+    path: /etc/krb5.keytab
+    state: absent
+  when: remove_keytab is defined
+  tags: join
+
+- name: Check if machine in domain already
+  args:
+  shell: net ads info | grep -q -iP '^Realm' && echo ALREADYJOINED || echo NOTJOIN
+    #echo NOTJOIN 
+  register: joined_already
+  ignore_errors: True
+  tags: join, checkjoined
+
+- name:
+  debug:
+    msg: "{{joined_already.stdout}}"
+  tags: checkjoined
+
+- name: Join RH clone to domain
+  shell:
+    cmd: "/usr/bin/join-to-domain.sh -d {{dc_realm|upper}} -n {{inventory_hostname_short}} -u {{dc_administrator}} -p {{ dc_password }} --sk -f -y"
+  when: joined_already.stdout == "NOTJOIN"
+  tags: join
+
+- name: sssd.conf use_fully_qualified_names set False
+  replace:
+     path: /etc/sssd/sssd.conf
+     regexp: '^use_fully_qualified_names = True'
+     replace: '#use_fully_qualified_names = True'
+     backup: true
+
+#- name: chrony configuration
+#  replace:
+#    path: /etc/chrony.conf
+#    regexp: "{{item.what}}"
+#    replace: "{{item.line}}"
+#    backup: yes
+#  with_items:
+#    - { what: "^server" , line: "#server"}
+#    - { what: '(^logdir.*$)' , line: '\1pool {{dc_realm|upper}}'}

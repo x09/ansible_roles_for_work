@@ -1,0 +1,7 @@
+#!/bin/sh
+REPO_DIR="{{repo_custom_path}}"
+REPO_NAME="{{repo_custom_name}}"
+
+for arch in {% for repo_arch in repo_custom_arch %}{{ repo_arch }} {% endfor %}; do
+  genbasedir --bloat --progress --topdir=$REPO_DIR $arch $REPO_NAME
+done

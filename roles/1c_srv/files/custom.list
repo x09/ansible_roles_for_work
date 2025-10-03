@@ -1,0 +1,3 @@
+rpm ftp://srv.test.alt/custom x86_64 custom
+rpm ftp://srv.test.alt/custom noarch custom
+rpm ftp://srv.test.alt/custom i586 custom

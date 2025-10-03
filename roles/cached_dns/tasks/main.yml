@@ -1,0 +1,33 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for cached_dns
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: bind,bind-utils
+    state: present
+    update_cache: yes
+
+#- name: Конфигурация NTP
+#  ansible.builtin.command:
+#    cmd: control chrony client
+
+- name: Copy options.conf
+  template:
+    src: options.conf.j2
+    dest: /etc/bind/options.conf
+    backup: yes
+
+- name: Включение bind
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  with_items:
+    - bind
+

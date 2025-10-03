@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for join_to_domain
+dc_password: "Qwerty1"
+dc_administrator: "Administrator"
+
+rh_clone: [ "CentOS", "RedHat", "Fedora"] 
+deb_clone:  [ "Ubuntu","Debian" ] 
+
+red_os: [ "RED" ]
+astra_os: [ 'Astra Linux' ]
+
+all_distros: "{{ rh_clone + deb_clone + red_os + astra_os}}"
+

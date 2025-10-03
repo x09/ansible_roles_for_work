@@ -1,0 +1,305 @@
+---
+# tasks file for sogo
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: task-sogo,postfix-ldap,dovecot,task-auth-ad-sssd,chrony
+    state: present
+    update_cache: yes
+  tags: task-sogo
+
+- name: Исходные данные
+  debug:
+    msg:
+      - "Домен: {{sogo_dc_host}}"
+      - "PostgreSQL DB overwrite (/var/lib/pgsql/data): {{ pg_overwrite | default('no') }}"
+  tags: summary
+
+- name: Выключение сервиса СУБД если pg_overwrite=yes
+  service:
+    name: postgresql
+    state: stopped
+  when: pg_overwrite == "yes"
+
+- name: Очистка каталога для БД
+  file:
+    state: absent
+    path: /var/lib/pgsql/data
+  when: pg_overwrite == "yes"
+
+- name: Проверка существования папки для БД
+  stat:
+    path: /var/lib/pgsql/data
+  register: pgsql_data
+
+- name: Конфигурация /etc/openldap/ldap.conf
+  ansible.builtin.lineinfile:
+    path: /etc/openldap/ldap.conf
+    backup: yes
+    insertafter: EOF
+    line: "TLS_REQCERT allow"
+
+- debug:
+    msg:
+      - "Сценарий прерван по причине:" 
+      - "- существует /var/lib/pgsql/data"
+      - "- не разрешена перезапись - pg_overwrite=no"
+  when: pgsql_data.stat.exists
+
+- meta: end_play
+  when: pgsql_data.stat.exists
+
+- name: Подготовка к развертывания БД
+  ansible.builtin.copy:
+    dest: /tmp/pgpw.dat
+    content: "{{sogo_db_password}}"
+    owner: postgres
+    group: postgres
+    mode: '0600'
+
+- name: Начальная конфигурация БД
+  ansible.builtin.command:
+    cmd: "initdb -A trust --pgdata=/var/lib/pgsql/data --locale=ru_RU.UTF-8 --pwfile=/tmp/pgpw.dat"
+  become: true
+  become_method: su
+  become_user: postgres
+  become_flags: '-s /bin/sh'
+
+- name: Удаление ненужных файлов
+  ansible.builtin.file:
+    path: /tmp/pgpw.dat
+    state: absent
+
+- name: Запуск службы БД
+  service:
+    name: postgresql
+    state: restarted
+    enabled: true
+
+- name: Создание служебного пользователя БД
+  become: true
+  become_method: su
+  become_user: postgres
+  become_flags: '-s /bin/sh'
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+  environment:
+    PGPASSWORD: "{{ sogo_db_password }}"
+  with_items:
+    - "createuser --no-superuser --no-createdb --no-createrole --encrypted sogo"
+    - "createdb -O sogo sogo"
+
+- name: Перезапуск службы БД
+  service:
+    name: postgresql
+    state: restarted
+    enabled: true
+
+- name: Конфигурация SOGO (sogo.conf)
+  template:
+    src: sogo.conf.j2
+    dest: /etc/sogo/sogo.conf
+    backup: yes
+    owner: root
+    group: _sogo
+    mode: '0640'
+
+- name: Конфигурация необходимых сервисов
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: true
+  with_items:
+    - postgresql 
+    - memcached
+    - sogo
+    - httpd2
+      # - samba
+
+- name: Конфигурация модулей WEB сервера
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - proxy
+    - proxy_http
+    - authn_core
+    - authn_file
+    - auth_basic
+    - authz_user
+    - env
+    - dav
+    - headers
+    - rewrite
+    - version
+    - setenvif
+
+- name: Включение сайта SOGo
+  ansible.builtin.command:
+    cmd: "a2ensite SOGo"
+
+- name: Перезапуск сервисов
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: true
+  with_items:
+    - sogo
+    - httpd2
+ 
+- name: Конфигурирование Postfix (/etc/postfix/main.cf)
+  template:
+    src: "main.cf.j2"
+    dest: "/etc/postfix/main.cf"
+    backup: yes
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Конфигурирование Postfix (/etc/postfix/mydestination)
+  ansible.builtin.command:
+    cmd: "echo > /etc/postfix/mydestination"
+
+- name:  Конфигурирование Postfix (/etc/postfix/master.cf)
+  template:
+    src: "master.cf.j2"
+    dest: "/etc/postfix/master.cf"
+    backup: yes
+    owner: root
+    group: root
+    mode: 0644
+
+- name:  Конфигурирование Postfix (прочие конфиги)
+  template:
+    src: "{{item}}.j2"
+    dest: "/etc/postfix/{{item}}"
+    backup: yes
+    owner: root
+    group: postfix
+    mode: 0640
+  with_items:
+      - ad_local_recipients.cf
+      - ad_mail_groups.cf
+      - ad_sender_login.cf
+
+- name: Перезапуск Postfix
+  service:
+    name: postfix
+    state: restarted
+    enabled: true
+
+# dovcot
+- name: Конфигурация Dovcot (10-auth.conf)
+  ansible.builtin.lineinfile:
+    path: /etc/dovecot/conf.d/10-auth.conf
+    backup: yes
+    regexp: "{{ item.rx }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { rx: "^#auth_mechanisms = plain", line: "auth_mechanisms = plain" }
+    - { rx: "^#!include auth-master.conf.ext", line: "!include auth-master.conf.ext" }
+    - { rx: "^#!include auth-ldap.conf.ext", line: "!include auth-ldap.conf.ext" }
+    - { rx: "^!include auth-system.conf.ext", line: "#!include auth-system.conf.ext" }
+  tags: dovecot
+
+- name: Конфигурация Dovecot (dovecot.conf)
+  ansible.builtin.lineinfile:
+    path: /etc/dovecot/dovecot.conf
+    backup: yes
+    regexp: '^#protocols =(.*)$'
+    line:  'protocols = \1 sieve'
+    backrefs: yes
+  tags: dovecot
+
+- name: Конфигурация Dovecot
+  template: 
+    src: "{{item.name}}.j2"
+    dest: "{{item.path}}/{{item.name}}"
+    backup: yes
+    owner: "{{item.owner}}"
+    group: "{{item.group}}"
+    mode: "{{item.mode}}"
+  with_items:
+    - { name: "10-master.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "15-lda.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "15-mailboxes.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "10-mail.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "10-stats.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "20-managesieve.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "90-sieve.conf",  path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "20-lmtp.conf", path: "/etc/dovecot/conf.d/", owner: "root", group: "root", mode: "0644" }
+    - { name: "dovecot-ldap.conf.ext", path: "/etc/dovecot/", owner: "dovecot", group: "root", mode: "0640" }
+    - { name: "sieve.creds", path: "/etc/sogo/", owner: "_sogo", group: "_sogo", mode: "0400" }
+    - { name: "master-users", path: "/etc/dovecot/", owner: "dovecot", group: "dovecot", mode: "0644" }
+  tags: dovecot
+
+- name: Перезапуск почтовых служб
+  service:
+    name: "{{item}}"
+    state: restarted
+    enabled: true
+  with_items:
+    - dovecot
+    - postfix
+    - sogo
+
+- name: Конфигурация NTP
+  ansible.builtin.command:
+    cmd: control chrony client
+
+- name: Подготовка к вводу в домен
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: |
+      search {{ dc_realm }}
+      nameserver 10.9.114.25
+  loop: "{{ resolv_files }}"
+  tags: join
+
+- name: Ввод в домен
+  ansible.builtin.command:
+    argv:
+      - "system-auth"
+      - "write"
+      - "ad"
+      - "{{ dc_realm }}"
+      - "{{ inventory_hostname_short }}"
+      - "{{ dc_workgroup }}"
+      - "Administrator"
+      - "{{dc_administrator_password}}"
+  tags: join
+
+- name: Включение NTP (режим server)
+  service:
+    name: chronyd
+    state: started
+    enabled: true
+
+
+- name: Дополнительная информация
+  debug:
+    msg:
+      - "Необходимо завести на КД пользователя sogo с паролем {{sogo_dc_password}}"
+      - "samba-tool user create sogo {{sogo_dc_password}}"
+      - "samba-tool user setexpiry --noexpiry sogo"
+  tags: summary
+
+
+- name: SOGo started
+  debug:
+    msg: 
+      - "https://{{ansible_default_ipv4.address}}/SOGo/"
+      - "Отключить ldaps в smb.conf на КД"
+      - "ldap server require strong auth = no"
+      - " "
+      - "Создать в домене служебного пользователя vmail с неистекающим паролем {{sogo_vmail_password}}"
+      - "samba-tool user create -W Users vmail {{sogo_vmail_password}}"
+      - "samba-tool user setexpiry vmail --noexpiry"
+  tags: show_sogo_ip
+
+

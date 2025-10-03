@@ -1,0 +1,66 @@
+# source mirror
+SRCROOT=rsync://rsync.altlinux.org/ALTLinux
+#SRCROOT=rsync://mirror.yandex.ru/altlinux
+#SRCROOT=rsync://ibiblio.org/Linux/distributions/altlinux
+#SRCROOT=rsync://ftp.linux.kiev.ua/ALTLinux
+
+# distination directory
+DESTROOT={{repo_official_local_path}}
+# example: we can use sisyphus-mirror for synchronize repos to removable media
+#DESTROOT=/media/disk/ALTLinux
+
+# repos for sync
+LIST="{% for platform in repo_official_platform %}{{platform}}{% endfor %}"
+#LIST="Sisyphus"
+#LIST="Sisyphus 4.0/branch updates backports people/shrek"
+
+# architectures for sync
+ARCH="{{repo_official_arch}}"
+
+# repos for search hardlinks
+#LINK_LIST="Sisyphus p7/branch t7/branch"
+
+# speed limit in Kb/s (--bwlimit=)
+#SPEED=512
+#SPEED=
+
+# other argumets for rsync
+# recommended for non-interactive mode:
+ARGS="-rltmvH --delete-delay --delete-excluded --stats"
+# recommended for interactive mode:
+#ARGS="-rltvhmH --progress --delete-delay --delete-excluded --stats"
+
+# if 1, print output to stdout
+INTERACTIVE=0
+
+# temp directory for synchronization
+TMPDEST=.new
+
+# backup type - READ README.UTF8
+#BACKUP_TYPE=one
+#BACKUP_TYPE=snapshots
+
+# directory for backups
+#BACKUP_DIR=/var/ftp/ALTLinux/previous-state
+#BACKUP_DIR=/var/ftp/ALTLinux/archive
+
+# if you do not want to download some packages, use this file
+EXCLUDE_FILE=/etc/sisyphus-mirror/exclude
+
+# this file needed when ARCH variable is used
+INCLUDE_FILE=/etc/sisyphus-mirror/include
+
+# directory for custom configs and logs
+RSHOME="$HOME/.sisyphus-mirror"
+
+# number of tries
+#MAXATTEMPTS=10
+
+# rsync protocol timeout (--timeout)
+#TMOUT1=500
+
+# pause between attempts
+#TMOUT2=15
+
+# http proxy server with HTTP CONNECT (host:port)
+#RSYNC_PROXY=localhost:3128

@@ -1,0 +1,41 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for join_to_domain
+
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}.{{dc_realm}}"
+    use: systemd
+
+- name: Include VARs for other platform
+  include_vars:  "{{ ansible_distribution }}/main.yml"
+
+- name: Join ALT
+  ansible.builtin.include_tasks: alt_join.yml
+  when: ansible_distribution == "AltLinux"
+
+- name: Join DEBIAN clones
+  ansible.builtin.include_tasks: debian_join.yml
+  when: ansible_distribution in deb_clone 
+
+- name: Join Astra
+  ansible.builtin.include_tasks: astra_join.yml
+  when: ansible_distribution in astra_os
+
+- name: Join RED clones
+  ansible.builtin.include_tasks: red_join.yml
+  when: ansible_distribution in red_os
+
+- name: Join RH clones
+  ansible.builtin.include_tasks: rh_join.yml
+  when: ansible_distribution in rh_clone
+
+
+- name: Summary
+  debug:
+    msg: 'All fine'
+  notify:
+    - Включение необходимых служб
+    - Перезапуск служб
+
+

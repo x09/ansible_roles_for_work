@@ -1,0 +1,47 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for join_to_domain
+
+#- name: Check network services status
+#  ansible.builtin.service_facts:
+
+- name: Установка необходимых пакетов
+  apt:
+    pkg: "{{ join_packages }}"
+    state: present
+    update_cache: yes
+  tags: join
+#  ignore_errors: True
+
+- name: Remove old keytab
+  ansible.builtin.file:
+    path: /etc/krb5.keytab
+    state: absent
+  when: remove_keytab is defined
+  tags: join
+
+- name: Check if machine in domain already
+  args:
+  shell: net ads info | grep -q -iP '^Realm' && echo ALREADYJOINED || echo NOTJOIN
+    #echo NOTJOIN 
+  register: joined_already
+  ignore_errors: True
+  tags: join, checkjoined
+
+- name:
+  debug:
+    msg: "{{joined_already.stdout}}"
+  tags: checkjoined
+
+- name: UNJOIN ASTRA from domain
+  command:
+    cmd: "astra-ad-sssd-client -U -u {{dc_administrator}} -p {{ dc_password }} -ip {{ansible_default_ipv4.address}} -y"
+  when: unjoin is defined
+  tags: unjoin
+
+- name: Join Astra to domain
+  command:
+    cmd: "astra-ad-sssd-client -u {{dc_administrator}} -p {{ dc_password }} -ip {{ansible_default_ipv4.address}} -d {{dc_realm|upper}} -y"
+  when:  joined_already.stdout == "NOTJOIN"
+  tags: join
+  ignore_errors: True

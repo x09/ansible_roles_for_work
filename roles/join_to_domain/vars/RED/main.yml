@@ -1,0 +1,13 @@
+---
+join_packages:
+  - realmd
+  - sssd
+  - adcli
+  - krb5-workstation
+  - sudo
+  - oddjob
+  - oddjob-mkhomedir
+  - samba-common-tools
+
+ansible_python_interpreter: "/usr/bin/python3"
+

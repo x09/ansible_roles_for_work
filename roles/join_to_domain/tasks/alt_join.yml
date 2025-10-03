@@ -1,0 +1,102 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for join_to_domain
+
+- name: Check network services status
+  ansible.builtin.service_facts:
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: "{{join_packages}}"
+    state: present
+    update_cache: yes
+
+# --- etcnet
+
+- name: Подготовка к вводу в домен (/etc/resolv.conf, +etcnet)
+  ansible.builtin.copy:
+    dest: "{{item}}"
+    content: |
+      search {{ dc_realm }}
+      nameserver 10.9.114.25
+  with_items: "{{resolv_files}}"
+  when:
+    - ("network.service") in ansible_facts.services
+    - ansible_facts.services['network.service'].status == 'enabled'
+    - ansible_virtualization_type != "lxc"
+
+# --- NetworkManager
+
+- name: Получение uuid активного соединения (NetworkManager)
+  ansible.builtin.shell:
+    cmd: >
+      nmcli -t -f UUID,TYPE,DEVICE connection show --active |
+      awk -F: '/ethernet/ && $3 != "" {print $1; exit}'
+  register: connection_uuid
+  when:
+    - ("NetworkManager.service") in ansible_facts.services
+    - ansible_facts.services['NetworkManager.service'].state == 'running'
+  changed_when: false
+
+- name: Подготовка к вводу в домен (dns, networkmanager)
+  ansible.builtin.command:
+    cmd: nmcli connection modify "{{ connection_uuid.stdout }}" ipv4.dns "10.9.114.25"
+  when:
+    - ("NetworkManager.service") in ansible_facts.services
+    - connection_uuid.stdout != ""
+    - ansible_facts.services['NetworkManager.service'].state == 'running'
+
+# ---- systemd-resolvd
+
+- name: Подготовка к вводу в домен (dns, systemd-networkd)
+  ini_file:
+    path: "/etc/systemd/network/{{ansible_default_ipv4.interface}}.network"
+    section: "Network"
+    option: "DNS"
+    value: "10.9.114.25"
+  when: 
+    - ("systemd-networkd.service") in ansible_facts.services
+    - ansible_facts.services['systemd-networkd.service'].state == 'running'
+  tags: systemd_networkd
+
+- name: restart_network
+  service:
+    name: "{{item}}.service"
+    state: restarted
+    enabled: true
+  when:
+    - (item+'.service') in ansible_facts.services
+    - ansible_facts.services[item+'.service'].state == 'running'
+  loop:
+    - "systemd-networkd"
+    - "network"
+    - "NetworkManager"
+
+- name: Конфигурация NTP
+  ansible.builtin.command:
+    cmd: control chrony client
+  when:  ansible_virtualization_type != "lxc"
+
+- name: Включение NTP (режим client)
+  service:
+    name: chronyd
+    state: started
+    enabled: true
+  when:  ansible_virtualization_type != "lxc"
+
+- name: Ввод в домен
+  ansible.builtin.command:
+    argv:
+      - "system-auth"
+      - "write"
+      - "ad"
+      - "{{ dc_realm }}"
+      - "{{ inventory_hostname_short }}"
+      - "{{ dc_workgroup }}"
+      - "Administrator"
+      - "{{dc_administrator_password}}"
+      - "{% if auth_backend is defined and auth_backend|lower == 'winbind' %}--winbind{% endif %}"
+      - "{% if domain_gpo is defined and domain_gpo|lower == 'yes' %}--gpo{% endif %}"
+  notify:
+    - Включение необходимых служб
+    - Перезапуск служб

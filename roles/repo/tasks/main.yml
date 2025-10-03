@@ -1,0 +1,92 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for repo
+
+- name: Установка необходимых пакетов
+  apt_rpm:
+    pkg: sisyphus-mirror,vsftpd,lftp
+    state: present
+    update_cache: yes
+
+- name: Создание папки для зеркала
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: directory
+  with_items:
+    - "{{repo_ftp_root}}"
+    - "{{repo_official_local_path}}"
+
+- name: Generate sisyphus-mirror.conf
+  template:
+    src: sisyphus-mirror.conf.j2 
+    dest: /etc/sisyphus-mirror/sisyphus-mirror.conf
+
+- name: Список исключений для зеркалирования
+  ansible.builtin.copy:
+    dest: "/etc/sisyphus-mirror/exclude"
+    content: "{{repo_exclude}}"
+
+- name: Создание задания в crontab
+  ansible.builtin.cron:
+    name: "Official ALT repository sync"
+    minute: "{{ repo_official_sync_period.split(' ')[0] }}"
+    hour: "{{ repo_official_sync_period.split(' ')[1] }}"
+    day: "{{ repo_official_sync_period.split(' ')[2] }}"
+    month: "{{ repo_official_sync_period.split(' ')[3] }}"
+    weekday: "{{ repo_official_sync_period.split(' ')[4] }}"
+    job: "/usr/bin/sisyphus-mirror"
+    user: root
+
+- name: xinetd ftp configuration
+  ansible.builtin.copy:
+    dest: "/etc/xinetd.d/vsftpd"
+    content: |
+      service ftp
+      {
+         disable = no # включает службу
+         socket_type = stream
+         protocol = tcp
+         wait = no
+         user = root
+         nice = 10
+         rlimit_as = 200M
+         server = /usr/sbin/vsftpd
+         only_from = 0/0 # предоставить доступ для всех IP
+      }
+    backup: yes
+
+- name: vsftpd.conf configuration
+  replace:
+    path: /etc/vsftpd.conf
+    regexp: '^#local_enable=YES'
+    replace: 'local_enable=YES'
+
+- name: Mount ftp root
+  command:
+    argv:
+      - "mount"
+      - "--bind"
+      - "{{repo_official_local_path}}"
+      - "{{repo_ftp_root}}"
+
+- name: fstab update
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "{{repo_official_local_path}} {{repo_ftp_root}} none defaults,bind 0 0"
+    state: present
+    backup: yes
+
+- name: Запуск xinetd
+  ansible.builtin.service:
+    name: xinetd
+    state: restarted
+    enabled: true
+
+- name: Create custom repository
+  ansible.builtin.include_tasks: customrepo.yml
+  when:
+    - repo_custom is defined
+    - repo_custom|lower == "yes"
+  tags: repo_custom_task
+
+

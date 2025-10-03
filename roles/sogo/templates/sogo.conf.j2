@@ -1,0 +1,76 @@
+{
+  SOGoProfileURL = "postgresql://sogo:{{sogo_db_password}}@/sogo/sogo_user_profile";
+  OCSFolderInfoURL = "postgresql://sogo:{{sogo_db_password}}@/sogo/sogo_folder_info";
+  OCSSessionsFolderURL = "postgresql://sogo:{{sogo_db_password}}@/sogo/sogo_sessions_folder";
+  OCSEMailAlarmsFolderURL = "postgresql://sogo:{{sogo_db_password}}@/sogo/sogo_alarms_folder";
+  SOGoEnableEMailAlarms = YES;
+  SOGoDraftsFolderName = Drafts;
+  SOGoSentFolderName = Sent;
+  SOGoTrashFolderName = Trash;
+  SOGoIMAPServer = "imaps://localhost:993/?tlsVerifyMode=allowInsecureLocalhost";
+  SOGoMailingMechanism = sendmail;
+  SOGoForceExternalLoginWithEmail = NO;
+  NGImap4ConnectionStringSeparator = "/";
+  SOGoUserSources =  (
+    {
+        id = sambaLogin;
+        displayName = "SambaLogin";
+        canAuthenticate = YES;
+        type = ldap;
+        CNFieldName = cn;
+        IDFieldName = cn;
+        UIDFieldName = mail;
+        hostname = "{{ldap_proto}}://{{sogo_dc_host}}";
+        baseDN = "{{sogo_dc_basedn}}";
+        bindDN = "{{sogo_dc_user}}";
+        bindPassword = "{{sogo_dc_password}}";
+        bindFields = (mail, sAMAccountName);
+    },
+    {
+        id = sambaShared;
+        displayName = "Общая адресная книга";
+        canAuthenticate = NO;
+        isAddressBook = YES;
+        type = ldap;
+        CNFieldName = cn;
+        IDFieldName = mail;
+        UIDFieldName = mail;
+        hostname = "{{ldap_proto}}://{{sogo_dc_host}}";
+        baseDN = "{{sogo_dc_basedn}}";
+        bindDN = "{{sogo_dc_user}}";
+        bindPassword = "{{sogo_dc_password}}";
+	//filter = "((NOT isCriticalSystemObject='TRUE') AND (mail='*') AND (NOT objectClass=contact))";
+	filter = "{{sogo_sambaShared_filter}}";
+    },
+    {
+        id = sambaContacts;
+        displayName = "Shared Contacts";
+        canAuthenticate = NO;
+        isAddressBook = YES;
+        type = ldap;
+        CNFieldName = cn;
+        IDFieldName = mail;
+        UIDFieldName = mail;
+        hostname = "{{ldap_proto}}://{{sogo_dc_host}}";
+        baseDN = "{{sogo_dc_basedn}}";
+        bindDN = "{{sogo_dc_user}}";
+        bindPassword = "{{sogo_dc_password}}";
+	filter = "{{sogo_sambaContact_filter}}";
+//        filter = "((((objectClass=person) AND (objectClass=contact) AND ((uidNumber>=2000) OR (mail='*')))
+//                 AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE') AND (NOT uid=Guest))
+//                 OR (((objectClass=group) AND (gidNumber>=2000)) AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE')))";
+        mapping = {
+            displayname = ("cn");
+        };
+    }
+  );
+  SOGoSieveScriptsEnabled = YES;
+  SOGoLanguage = Russian;
+  SOGoTimeZone = {{sogo_TZ}};
+  SOGoFirstDayOfWeek = 1;
+  
+  SOGoVacationEnabled = YES;
+  SOGoForwardEnabled = YES;
+  SOGoSieveFolderEncoding = UTF-8;
+
+}

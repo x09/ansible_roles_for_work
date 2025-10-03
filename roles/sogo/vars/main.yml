@@ -1,0 +1,36 @@
+---
+# vars file for sogo
+sogo_db_password: "Qwerty1"
+
+# yes|no
+pg_overwrite: "yes"
+
+ldap_proto: "ldaps"
+
+# Адрес КД где лежат доменные пользователи
+sogo_dc_host: "{{dc1_ipv4}}"
+sogo_maildomain: "{{dc_realm}}"
+sogo_postmaster: "postmaster"
+
+# путь до служебной УЗ sogo
+sogo_dc_user: "CN=sogo,CN=Users,DC=test,DC=alt"
+sogo_dc_password: "Qwerty1"
+
+sogo_postfix_search_base: "dc=test,dc=alt"
+sogo_postfix_vmail_basedn: "cn=vmail,cn=users,dc=test,dc=alt"
+sogo_vmail_password: "Qwerty1"
+
+# где искать пользователей
+sogo_dc_basedn: "DC=test,DC=alt"
+
+sogo_sambaShared_filter: "((NOT isCriticalSystemObject='TRUE') AND (mail='*') AND (NOT objectClass=contact))"
+sogo_sambaContact_filter: "((((objectClass=person) AND (objectClass=contact) AND ((uidNumber>=2000) OR (mail='*'))) AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE') AND (NOT uid=Guest)) OR (((objectClass=group) AND (gidNumber>=2000)) AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE')))"
+
+sogo_TZ: "Europe/Moscow"
+
+#https://doc.dovecot.org/configuration_manual/authentication/master_users/
+sogo_dovecot_master_user: "my_master_user@non-exist.com:{PLAIN}password::::::"
+
+sogo_dovecot_sieve_creds: "my_master_user@non-exist.com:password"
+
+

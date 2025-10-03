@@ -1,0 +1,11 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for 1c_srv
+
+version_1c: "8.3.24.1667"
+arch_1c: "x86_64"
+db_1c_password: "Qwerty1"
+pg1c_overwrite: "yes"
+#systemctl link /opt/1cv8/<архитектура>/<версия>/srv1cv8-<версия>@.service
+
+

@@ -1,0 +1,42 @@
+# Global Postfix configuration file.  This file lists only a small subset
+# of all parameters.  For the syntax, and for a complete parameter list,
+# see the postconf(5) manual page.  For a commented and more complete
+# version of this file see /etc/postfix/main.cf.dist
+
+#mailbox_command = /usr/bin/procmail -a $DOMAIN -d $LOGNAME
+#inet_protocols = ipv4
+
+# Global Postfix configuration file.  This file lists only a small subset
+# of all parameters.  For the syntax, and for a complete parameter list,
+# see the postconf(5) manual page.  For a commented and more complete
+# version of this file see /etc/postfix/main.cf.dist
+mailbox_command = /usr/libexec/dovecot/dovecot-lda -f "$SENDER" -a "$RECIPIENT"
+inet_protocols = ipv4
+
+# Mappings
+virtual_mailbox_base = /var/mail
+virtual_mailbox_domains = {{sogo_maildomain}}
+virtual_mailbox_maps = ldap:/etc/postfix/ad_local_recipients.cf
+#cdb:/etc/postfix/_sogo
+virtual_alias_maps = ldap:/etc/postfix/ad_mail_groups.cf
+virtual_transport = dovecot
+local_transport = virtual
+local_recipient_maps = $virtual_mailbox_maps
+dovecot_destination_recipient_limit = 1
+
+# SSL/TLS
+smtpd_use_tls = yes
+smtpd_tls_security_level = encrypt
+#smtpd_tls_security_level = may
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_local_domain = {{sogo_maildomain}}
+smtpd_sasl_path = private/auth
+smtpd_sasl_type = dovecot
+smtpd_sender_login_maps = ldap:/etc/postfix/ad_sender_login.cf
+smtpd_tls_auth_only = yes
+smtpd_tls_cert_file = /var/lib/ssl/certs/dovecot.cert
+smtpd_tls_key_file = /var/lib/ssl/private/dovecot.key
+smtpd_tls_CAfile = /var/lib/ssl/certs/dovecot.pem
+
+smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, per-mit_sasl_authenticated, reject
+smtpd_sender_restrictions = reject_authenticated_sender_login_mismatch

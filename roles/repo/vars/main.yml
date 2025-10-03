@@ -1,0 +1,100 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for repo
+
+repo_ftp_root: "/var/ftp/ALTLinux"
+
+repo_official_platform:
+  - p11/branch
+repo_official_local_path: "/srv/public/ALTLinux"
+repo_official_arch: "noarch"
+repo_official_sync_period: "0 3 * * *"
+
+repo_custom: "yes"
+repo_custom_name: "custom"
+repo_custom_arch:
+  - x86_64
+  - noarch
+  - i586
+repo_custom_path: "/srv/public/custom/"
+repo_custom_sync_period: "0 */2 * * *"
+
+repo_exclude: |
+  *-debuginfo-*
+  *0ad-*
+  *ltp-*
+  *aircrack-ng*
+  *nikto-*
+  *cgns-*
+  *FlightGear-*
+  SRPMS
+  *kernel*
+  *LibreOffice*
+  *kf6-*
+  *-devel*
+  lib*
+  FlightGear*
+  redeclipse-data*
+  nexuiz-data*
+  supertuxkart-data*
+  sauerbraten-data*
+  pioneerspacesim*
+  clipart-wp-png*
+  retroarch-assets*
+  openarena*
+  TORCS-data*
+  megaglest*
+  firmware-linux*
+  clipart-openclipart
+  desktop-theme-deepin*
+  openuds*
+  frogatto*
+  scourge*
+  freedroidrpg*
+  texlive*
+  freecol*
+  xonotic*
+  ufoai*
+  redeclipse*
+  proj-data*
+  sauerbraten*
+  supertuxkart-*
+  warsow*
+  widelands*
+  wesnoth-data*
+  clipart*
+  warzone2100*
+  nextcloud*
+  wallpapers*
+  festvox_msu_ru_nsh_clunits*
+  uhd*
+  clamav*
+  supertux2*
+  sweethome3d*
+  surge*
+  hedgewars*
+  plasma*
+  fillets*
+  qt4*
+  pbx*
+  odoo*
+  festvox_cstr_us_awb_arctic_multisyn*
+  edgar*
+  gcompris*
+  flare*
+  fluid*
+  jboss*
+  gutenprint*
+  fluid*
+  uqm*
+  WyabdcRealPeopleTTS*
+  fonts*
+  alt*
+  tremulous*
+  puppetdb*
+  osgearth*
+  gcc*
+  uqm*
+  festvox_cstr_us_jmk_arctic_multisyn*
+  wine*
+

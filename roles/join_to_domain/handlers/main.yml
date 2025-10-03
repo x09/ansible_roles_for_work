@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for join_to_domain
+
+- name: Включение необходимых служб
+  service:
+    name: sssd
+    state: started
+    enabled: true
+  when: auth_backend|lower == "sssd"
+
+- name: Перезапуск служб
+  service:
+    name: smb
+    state: restarted
+    enabled: true
+
+

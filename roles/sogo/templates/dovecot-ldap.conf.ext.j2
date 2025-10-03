@@ -1,0 +1,13 @@
+hosts            = {{sogo_maildomain}}:3268
+ldap_version     = 3
+auth_bind        = yes
+dn               = {{sogo_postfix_vmail_basedn}}
+dnpass           = {{sogo_vmail_password}}
+base             = {{sogo_dc_basedn}}
+scope            = subtree
+deref            = never
+
+user_filter = (&(objectClass=user)(|(mail=%Lu)(sAMAccountName=%Lu)))
+user_attrs  = =uid=8,gid=12,mail=user
+pass_filter = (&(objectClass=user)(|(mail=%Lu)(sAMAccountName=%Lu)))
+pass_attrs = mail=user

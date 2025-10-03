@@ -1,0 +1,8 @@
+---
+join_packages:
+  - task-auth-ad-sssd
+  - task-auth-ad-winbind
+  - chrony
+  - gpupdate---
+
+
