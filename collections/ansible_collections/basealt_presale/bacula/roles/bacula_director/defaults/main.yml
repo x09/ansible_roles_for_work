@@ -70,7 +70,7 @@ bacula_conf_backup_jobs:
       level: Full,
       fileset: BaculaFileset,
       storage: BaculaStorage,
-      messages: Standart,
+      messages: Standard,
       priority: 10,
       schedule: BaculaWeekly,
       pool: BaculaPool,

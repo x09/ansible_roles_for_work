@@ -96,6 +96,10 @@
     regex: "{{ pgsql_grant_priv_regex }}"
     line: "{{ pgsql_grant_priv_line }}"
 
+- name: "Время покурить 5 сек"
+  pause:
+    seconds: 5
+
 - name: "Создание базы данных"
   command: "{{ pgsql_script_db }}"
 

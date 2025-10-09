@@ -1,0 +1,172 @@
+bacula_conf_clients:
+  - {
+      name: BaculaClient1,
+      address: bacula-fd1.kou.alt,
+      port: 9102,
+      catalog: PostgresCatalog,
+      file_retention: 30 days,
+      job_retention: 6 months,
+      autoprune: yes,
+      file_src: bacula-client.conf.tpl,
+      file_dst: /etc/bacula/client.d/bacula-client-1.conf,
+      pass_file: /etc/bacula/password.d/bacula-client-1.conf,
+    }
+  - {
+      name: BaculaClient2,
+      address: bacula-fd2.kou.alt,
+      port: 9102,
+      catalog: PostgresCatalog,
+      file_retention: 30 days,
+      job_retention: 6 months,
+      autoprune: yes,
+      file_src: bacula-client.conf.tpl,
+      file_dst: /etc/bacula/client.d/bacula-client-2.conf,
+      pass_file: /etc/bacula/password.d/bacula-client-2.conf,
+    }
+bacula_conf_storages:
+  - {
+      name: BaculaStorage,
+      address: bacula-sd.kou.alt,
+      port: 9103,
+      device: FileStorage,
+      media_type: File,
+      file_src: bacula-storage.conf.tpl,
+      file_dst: /etc/bacula/storage.d/bacula-storage.conf,
+      pass_file: /etc/bacula/password.d/bacula-storage.conf,
+    }
+bacula_conf_filesets:
+  - {
+      name: BaculaFilesetFull,
+      backup_paths: [
+        '/etc',
+      ],
+      exclude_paths: [
+        '/proc',
+        '/sys',
+        '/dev',
+        '/tmp',
+        '/.journal',
+        '/.fsck',
+      ],
+      file_src: bacula-fileset.conf.tpl,
+      file_dst: /etc/bacula/fileset.d/bacula-fileset-full.conf,
+    }
+bacula_conf_schedules:
+  - {
+      name: BaculaWeeklyFull,
+      file_src: bacula-schedule.conf.tpl,
+      file_dst: /etc/bacula/schedule.d/bacula-weekly-full.conf,
+      run: [
+        "Full on mon-sun at 23:00",
+      ]
+    }
+  - {
+      name: BaculaWeeklyDiff,
+      file_src: bacula-schedule.conf.tpl,
+      file_dst: /etc/bacula/schedule.d/bacula-weekly-diff.conf,
+      run: [
+        "Full on mon at 23:00",
+        "Differential tue-sun at 05:30",
+      ]
+    }
+  - {
+      name: BaculaWeeklyIncr,
+      file_src: bacula-schedule.conf.tpl,
+      file_dst: /etc/bacula/schedule.d/bacula-weekly-incr.conf,
+      run: [
+        "Full on mon at 23:00",
+        "Incremental on tue-sun at 05:00",
+      ]
+    }
+bacula_conf_backup_jobs:
+  - {
+      name: BaculaClient1JobBackupFull,
+      client: BaculaClient1,
+      type: Backup,
+      level: Full,
+      fileset: BaculaFilesetFull,
+      storage: BaculaStorage,
+      messages: Standard,
+      priority: 10,
+      schedule: BaculaWeeklyFull,
+      pool: BaculaPool,
+      file_src: bacula-job-backup.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-1-job-backup-full.conf,
+    }
+  - {
+      name: BaculaClient2JobBackupFull,
+      client: BaculaClient2,
+      type: Backup,
+      level: Full,
+      fileset: BaculaFilesetFull,
+      storage: BaculaStorage,
+      messages: Standard,
+      priority: 10,
+      schedule: BaculaWeeklyFull,
+      pool: BaculaPool,
+      file_src: bacula-job-backup.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-2-job-backup-full.conf,
+    }
+bacula_conf_restore_jobs:
+  - {
+      name: BaculaClient1JobRestore,
+      client: BaculaClient1,
+      type: Restore,
+      fileset: BaculaFilesetFull,
+      storage: BaculaStorage,
+      messages: Standard,
+      pool: BaculaPool,
+      priority: 10,
+      where: /tmp/bacula-restore,
+      file_src: bacula-job-restore.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-1-job-restore.conf,
+    }
+  - {
+      name: BaculaClient2JobRestore,
+      client: BaculaClient2,
+      type: Restore,
+      fileset: BaculaFilesetFull,
+      storage: BaculaStorage,
+      messages: Standard,
+      pool: BaculaPool,
+      priority: 10,
+      where: /tmp/bacula-restore,
+      file_src: bacula-job-restore.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-2-job-restore.conf,
+    }
+bacula_conf_pools:
+  - {
+      name: BaculaPool,
+      backup_type: Backup,
+      recycle: yes,
+      autoprune: yes,
+      volume_retention: 7 days,
+      label_format: "${Client}-${Year}-${Month}-${Day}-${Hour}-${Minute}-${Second}",
+      file_src: bacula-pool.conf.tpl,
+      file_dst: /etc/bacula/pool.d/bacula-pool.conf,
+    }
+bacula_conf_passwords:
+  - {
+      name: bacula-director,
+      password: "{{bacula_passwords['bacula_dir']}}",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-director.conf,
+    }
+  - {
+      name: bacula-storage,
+      password: "{{bacula_passwords['bacula_sd']}}",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-storage.conf,
+    }
+  - {
+      name: bacula-client-1,
+      password: "{{bacula_passwords['bacula_fd1']}}",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-client-1.conf,
+    }
+  - {
+      name: bacula-client-2,
+      password: "{{bacula_passwords['bacula_fd2']}}",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-client-2.conf,
+    }

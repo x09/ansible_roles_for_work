@@ -1,0 +1,15 @@
+bacula_dir_name: BaculaDirector
+bacula_fd_name: BaculaClient2
+bacula_fd_port: 9102
+bacula_fd_max_jobs: 20
+bacula_fd_tpl_backup: true
+bacula_fd_tpl_force: true
+bacula_fd_password: "{{ bacula_passwords['bacula_fd2'] }}"
+# ENCRYPTION
+bacula_pki_encryption: No
+bacula_pki_signatures: No
+# bacula_pki_keypair: /etc/bacula/client.pem
+# bacula_pki_keypair_src: "{{playbook_dir}}/shared_files/client1/client.pem"
+# bacula_pki_master_key: /etc/bacula/master.crt
+# bacula_pki_master_key_src: "{{playbook_dir}}/shared_files/client1/master.crt"
+# bacula_pki_cipher: AES256
