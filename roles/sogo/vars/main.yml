@@ -1,4 +1,10 @@
 ---
+dc_hostname: "dc1.test.alt"
+
+dc_realm: "{{ dc_hostname.split('.', 1)[1] }}"
+dc_workgroup: "{{ dc_hostname.split('.')[1] }}"
+dc_root: "{{ dc_realm.split('.') | map('regex_replace', '^(.*)$', 'dc=\\1') | join(',') }}"
+
 # vars file for sogo
 sogo_db_password: "Qwerty1"
 
@@ -13,15 +19,15 @@ sogo_maildomain: "{{dc_realm}}"
 sogo_postmaster: "postmaster"
 
 # путь до служебной УЗ sogo
-sogo_dc_user: "CN=sogo,CN=Users,DC=test,DC=alt"
+sogo_dc_user: "CN=sogo,CN=Users,{{dc_root}}"
 sogo_dc_password: "Qwerty1"
 
-sogo_postfix_search_base: "dc=test,dc=alt"
-sogo_postfix_vmail_basedn: "cn=vmail,cn=users,dc=test,dc=alt"
+sogo_postfix_search_base: "{{dc_root}}"
+sogo_postfix_vmail_basedn: "cn=vmail,cn=users,{{dc_root}}"
 sogo_vmail_password: "Qwerty1"
 
 # где искать пользователей
-sogo_dc_basedn: "DC=test,DC=alt"
+sogo_dc_basedn: "{{dc_root}}"
 
 sogo_sambaShared_filter: "((NOT isCriticalSystemObject='TRUE') AND (mail='*') AND (NOT objectClass=contact))"
 sogo_sambaContact_filter: "((((objectClass=person) AND (objectClass=contact) AND ((uidNumber>=2000) OR (mail='*'))) AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE') AND (NOT uid=Guest)) OR (((objectClass=group) AND (gidNumber>=2000)) AND (NOT isCriticalSystemObject='TRUE') AND (NOT showInAdvancedViewOnly='TRUE')))"

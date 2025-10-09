@@ -6,3 +6,12 @@ kea_ha_mode: "hot-standby"
 dhcp_subnet: "10.9.114.0/24"
 dhcp_pool: "10.9.114.100 - 10.9.114.150"
 
+dhcp_reservation:
+  - { hwaddress: "1a:1b:1c:1d:1e:1f", ipaddress: "192.168.151.66" }
+  - { hwaddress: "1a:1b:1c:1d:1e:2f", ipaddress: "192.168.151.67" }
+  - { hwaddress: "1a:1b:1c:1d:1e:3f", ipaddress: "192.168.151.68" }
+
+dhcp_option_router: "192.168.151.101"
+dhcp_option_dns: "8.8.8.8, 1.1.1.1"
+dhcp_option_ntp: "192.168.151.200, 192.168.151.201"
+

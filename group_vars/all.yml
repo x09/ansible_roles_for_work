@@ -19,8 +19,10 @@ extra_options: "--use-rfc2307"
 dc_administrator_login: "administrator"
 dc_administrator_password: "Qwerty1"
 dc_hostname: "dc1.test.alt"
-dc_realm: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\1') }}"
-dc_workgroup: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\2') }}"
+#dc_realm: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\1') }}"
+dc_realm: "{{ dc_hostname.split('.', 1)[1] }}"
+#dc_workgroup: "{{ dc_hostname | regex_replace('[\\w\\-\\d]+\\.(([\\w\\-\\d]+)\\.(\\w+))$', '\\2') }}"
+dc_workgroup: "{{ dc_hostname.split('.')[1] }}"
 
 samba_dns_forward: "8.8.8.8"
 
