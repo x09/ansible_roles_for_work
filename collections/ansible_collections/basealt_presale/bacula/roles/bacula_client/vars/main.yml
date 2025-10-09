@@ -1,0 +1,21 @@
+bacula_fd_service: bacula-fd
+bacula_fd_service_enabled: yes
+bacula_fd_service_status: started
+
+bacula_fd_service_check: 'systemctl status bacula-fd.service | grep -E "Active|Loaded"'
+bacula_fd_service_check_ports: 'ss -ltnp | grep bacula-fd'
+
+bacula_fd_conf_src: bacula-fd.conf.tpl
+bacula_fd_pass_conf_src: bacula-fd-password.conf.tpl
+bacula_fd_conf_dst: /etc/bacula/bacula-fd.conf
+bacula_fd_pass_conf_dst: /etc/bacula/bacula-fd-password.conf
+
+bacula_fd_work_dir: /var/lib/bacula
+bacula_fd_pid_dir: /var/run/bacula
+
+bacula_pki_owner: root
+bacula_pki_group: bacula
+bacula_pki_mode: 0640
+
+install_packages:
+  - bacula15-client

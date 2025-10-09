@@ -1,0 +1,67 @@
+apache2_service: httpd2
+apache2_service_enabled: yes
+apache2_service_state: restarted
+
+apache2_service_check: 'systemctl status httpd2.service | grep -E "Active|Loaded"'
+apache2_service_check_ports: 'ss -alnp | grep httpd2'
+
+apache2_a2ensite_cmd: /usr/sbin/a2ensite
+apache2_a2dissite_cmd: /usr/sbin/a2dissite
+
+apache2_user: apache2
+apache2_group: bacula
+
+sudo_control_cmd: "/usr/sbin/control sudo public"
+bconsole_conf_dest: /etc/bacula/bconsole.conf
+
+bacula_dir_conf_pass: /etc/bacula/password.d/bacula-director.conf
+
+bconsole_configs:
+  - {
+    tpl: sudoers.tpl,
+    path: /etc/sudoers.d/baculum,
+  }
+  - {
+    tpl: bconsole.conf.tpl,
+    path: /etc/bacula/bconsole.conf,
+  }
+  - {
+    tpl: hosts.conf.tpl,
+    path: /var/cache/baculum/Web-Config/hosts.conf,
+  }
+  - {
+    tpl: users.conf.tpl,
+    path: /var/cache/baculum/Web-Config/users.conf,
+  }
+  - {
+    tpl: settings.conf.tpl,
+    path: /var/cache/baculum/Web-Config/settings.conf,
+  }
+  - {
+    tpl: api.conf.tpl,
+    path: /var/cache/baculum/API-Config/api.conf,
+  }
+  - {
+    tpl: bacula-dir-password.conf.tpl,
+    path: /etc/bacula/bacula-dir-password.conf,
+  }
+
+baculum_modules:
+  - auth_basic
+  - authn_core
+  - authn_file
+  - authz_core
+  - authz_host
+  - authz_user
+  # - mod_php8.3 # ставиться пакетом apache2-mod_php8.3
+  - negotiation
+  - rewrite
+  - setenvif
+
+baculum_sites:
+  - baculum-api
+  - baculum-web
+
+install_packages:
+  - baculum15-postgresql
+  - baculum15-apache2 # по зависимости прилетает apache2-mod_php8.3

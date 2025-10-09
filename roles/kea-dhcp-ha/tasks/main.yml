@@ -1,5 +1,9 @@
 #SPDX-License-Identifier: MIT-0
 ---
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}"
+    use: systemd
 
 - name: Установка необходимых пакетов
   apt_rpm:

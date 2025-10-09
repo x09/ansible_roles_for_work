@@ -1,0 +1,74 @@
+- name: "Установка пакетов"
+  apt_rpm:
+    pkg: "{{ item }}"
+    update_cache: yes
+    state: present
+  with_items: "{{ install_packages }}"
+
+- name: "Сброс сайтов Apache2"
+  command: "{{ apache2_a2dissite_cmd }} {{ item }}"
+  failed_when: false
+  with_items: "{{ baculum_sites }}"
+
+- name: "Включение модулей Apache2"
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ baculum_modules }}"
+
+- name: "Включение сайтов Apache2"
+  command: "{{ apache2_a2ensite_cmd }} {{ item }}"
+  with_items: "{{ baculum_sites }}"
+
+- name: "Добавление apache2 в группу bacula"
+  user:
+    name: "{{ apache2_user }}"
+    groups: "{{ apache2_group }}"
+    append: yes
+
+- name: "Рабочая директория"
+  file:
+    path: "{{ bconsole_work_dir }}"
+    owner: "{{ apache2_user }}"
+    group: "{{ apache2_group }}"
+    mode: "0660"
+    state: directory
+
+- name: "Настройка конфигурационных файлов"
+  template:
+    backup: yes
+    src: "{{ item.tpl }}"
+    dest: "{{ item.path }}"
+  with_items: "{{ bconsole_configs }}"
+
+- name: "Изменение политики sudo"
+  command: "{{ sudo_control_cmd }}"
+  become_flags: "-l"
+
+- name: "Запуск службы Apache2"
+  systemd:
+    name: "{{ apache2_service }}"
+    enabled: "{{ apache2_service_enabled }}"
+    state: "{{ apache2_service_state }}"
+
+- name: "Проверка службы"
+  shell: "{{ apache2_service_check }}"
+  register: print_service_status
+
+- name: "Статус службы"
+  debug:
+    var: print_service_status.stdout_lines
+
+- name: "Проверка портов"
+  shell: "{{ apache2_service_check_ports }}"
+  register: print_sockets
+
+- name: "Прослушиваемые порты"
+  debug:
+    var: print_sockets.stdout_lines
+
+- name: "Доступные интерфейсы"
+  debug:
+    msg:
+      - "Веб-интерфейс доступен по адресу {{ inventory_hostname }}:9095"
+      - "API-интерфейс доступен по адресу {{ inventory_hostname }}:9096"

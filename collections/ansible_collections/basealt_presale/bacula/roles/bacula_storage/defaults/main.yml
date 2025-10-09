@@ -1,0 +1,10 @@
+bacula_dir_name: dir
+
+bacula_sd_dir_path: /srv/backup
+
+bacula_sd_name: sd
+bacula_sd_device: FileStorage
+bacula_sd_media_type: File
+bacula_sd_port: 9103
+bacula_sd_max_jobs: 20
+bacula_sd_password: Pa$$w0rD

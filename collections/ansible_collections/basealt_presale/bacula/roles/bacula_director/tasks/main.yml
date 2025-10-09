@@ -1,0 +1,117 @@
+- name: "Установка необходимых пакетов"
+  apt_rpm:
+    pkg: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items: "{{ install_packages }}"
+
+- name: "Основная конфигурация bacula-dir.conf"
+  template:
+    src: "{{ bacula_dir_conf_src }}"
+    dest: "{{ bacula_dir_conf_dst }}"
+    backup: "{{ bacula_conf_backup }}"
+
+- name: "Конфигурация BConsole"
+  template:
+    src: "{{ bacula_bcon_conf_src }}"
+    dest: "{{ bacula_bcon_conf_dst }}"
+    backup: "{{ bacula_conf_backup }}"
+
+- name: "Конфигурация Client"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_clients }}"
+
+- name: "Конфигурация Fileset"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_filesets }}"
+
+- name: "Конфигурация Default Job"
+  template:
+    src: "{{ jobdefs_conf_src }}"
+    dest: "{{ jobdefs_conf_dst }}"
+
+- name: "Конфигурация Backup Job"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_backup_jobs }}"
+
+- name: "Конфигурация Restore Job"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_restore_jobs }}"
+
+- name: "Конфигурация Pool"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_pools }}"
+
+- name: "Конфигурация Schedule"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_schedules }}"
+
+- name: "Конфигурация Storage"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_storages }}"
+
+
+
+- name: "Конфигурация Messages"
+  lineinfile:
+    backup: "{{ bacula_conf_backup }}"
+    insertafter: "{{ bacula_msg_insert_after }}"
+    path: "{{ item }}"
+    line: "{{ bacula_msg_insert_line }}"
+  loop: "{{ bacula_msg_paths }}"
+
+
+
+
+- name: "Каталог password.d"
+  file:
+    path: "{{ bacula_conf_pass }}"
+    state: directory
+
+- name: "Пароль для компонентов"
+  template:
+    src: "{{ item.file_src }}"
+    dest: "{{ item.file_dst }}"
+  loop: "{{ bacula_conf_passwords }}"
+
+- name: "Удаление ненужной конфигурации"
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ bacula_conf_delete }}"
+
+- name: "Запуск службы"
+  systemd:
+    name: "{{ bacula_dir_service }}"
+    enabled: "{{ bacula_dir_service_enabled }}"
+    state: "{{ bacula_dir_service_state }}"
+
+- name: "Проверка службы"
+  shell: "{{ bacula_dir_service_check }}"
+  register: print_service_status
+
+- name: "Статус службы"
+  debug:
+    var: print_service_status.stdout_lines
+
+- name: "Проверка портов"
+  shell: "{{ bacula_dir_service_check_ports }}"
+  register: print_sockets
+
+- name: "Прослушиваемые порты"
+  debug:
+    var: print_sockets.stdout_lines

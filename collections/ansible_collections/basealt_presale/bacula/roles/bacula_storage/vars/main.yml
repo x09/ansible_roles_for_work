@@ -1,0 +1,23 @@
+bacula_sd_service: bacula-sd
+bacula_sd_service_state: started
+bacula_sd_service_enabled: true
+
+bacula_sd_service_check: 'systemctl status bacula-sd.service | grep -E "Active|Loaded"'
+bacula_sd_service_check_ports: 'ss -ltnp | grep bacula-sd'
+
+bacula_sd_conf_backup: true
+bacula_sd_conf_tpl_src: bacula-sd.conf.tpl
+bacula_sd_conf_tpl_dst: /etc/bacula/bacula-sd.conf
+
+bacula_sd_pass_tpl_src: bacula-sd-password.conf.tpl
+bacula_sd_pass_tpl_dst: /etc/bacula/bacula-sd-password.conf
+
+bacula_sd_work_dir: /var/lib/bacula
+bacula_sd_pid_dir: /var/run/bacula
+
+bacula_dev_conf_tpl_src: device.d/filestorage.conf.tpl
+bacula_dev_conf_tpl_dst: /etc/bacula/device.d/filestorage.conf
+
+install_packages:
+  - bacula15-storage
+

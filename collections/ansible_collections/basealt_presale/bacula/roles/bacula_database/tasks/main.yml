@@ -1,0 +1,106 @@
+- name: "Установка пакетов"
+  apt_rpm:
+    pkg: "{{ item }}"
+    update_cache: yes
+    state: present
+  with_items: "{{ install_packages }}"
+
+- name: "Очистка старой конфигурации"
+  file:
+    path: "{{ pgsql_data }}"
+    state: absent
+
+- name: "Проверка/подготовка рабочего каталога"
+  file:
+    path: "{{ pgsql_data }}"
+    state: "directory"
+    owner: "{{ pgsql_user }}"
+    group: "{{ pgsql_group }}"
+    mode: "{{ pgsql_filemode }}"
+
+- name: "Подготовка для инициализации"
+  copy:
+    dest: "{{ pgsql_init_pwfile }}"
+    content: "{{ pgsql_init_pass }}"
+    owner: "{{ pgsql_user }}"
+    group: "{{ pgsql_group }}"
+    mode: "{{ pgsql_filemode }}"
+
+- name: "Подготовка пользователя postgres"
+  user:
+    name: "{{ pgsql_user }}"
+    update_password: always
+    shell: /bin/sh
+    password: "{{ pgsql_postgres_hash }}"
+
+- name: "Инициализация PostgreSQL"
+  vars:
+    ansible_become_user: "{{ pgsql_user }}"
+    ansible_become_pass: "{{ pgsql_postgres_pass }}"
+  command:
+    argv:
+      - "{{ pgsql_init_cmd }}"
+      - "--auth=trust"
+      - "--pgdata={{ pgsql_data }}"
+      - "--locale={{ pgsql_init_locale }}"
+      - "--pwfile={{ pgsql_init_pwfile }}"
+  become_method: su
+  become_flags: '-s /bin/sh'
+  become: true
+
+
+- name: Удаление временных файлов
+  file:
+    path: "{{ pgsql_init_pwfile }}"
+    state: absent
+
+- name: "Изменение postgresql.conf"
+  lineinfile:
+    backup: "{{ pgsql_conf_backup }}"
+    insertafter: "{{ pgsql_insertafter }}"
+    path: "{{ pgsql_conf }}"
+    line: "{{ pgsql_listen_line }}"
+
+- name: "Изменение pg_hba.conf"
+  blockinfile:
+    backup: "{{ pgsql_conf_backup }}"
+    path: "{{ pgsql_hba_conf }}"
+    block: "{{ pgsql_hba }}"
+
+- name: "Запуск службы PostgreSQL"
+  systemd:
+    name: "{{ pgsql_service }}"
+    enabled: "{{ pgsql_service_enabled }}"
+    state: "{{ pgsql_service_state }}"
+
+- name: "Проверка службы"
+  shell: "{{ pgsql_service_check }}"
+  register: print_service_status
+
+- name: "Статус службы"
+  debug:
+    var: print_service_status.stdout_lines
+
+- name: "Проверка портов"
+  shell: "{{ pgsql_service_check_ports }}"
+  register: print_sockets
+
+- name: "Прослушиваемые порты"
+  debug:
+    var: print_sockets.stdout_lines
+
+- name: "Установка пароля от базы данных"
+  lineinfile:
+    backup: "{{ pgsql_conf_backup }}"
+    path: "{{ pgsql_grant_priv_conf }}"
+    regex: "{{ pgsql_grant_priv_regex }}"
+    line: "{{ pgsql_grant_priv_line }}"
+
+- name: "Создание базы данных"
+  command: "{{ pgsql_script_db }}"
+
+- name: "Создание таблиц в базе данных"
+  command: "{{ pgsql_script_tbl }}"
+
+- name: "Установка необходимых привилегий"
+  command: "{{ pgsql_script_priv }}"

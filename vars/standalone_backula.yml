@@ -1,0 +1,69 @@
+---
+bacula_passwords:
+  - bacula_dir: "puYqNJ!rDc"
+  - bacula_db: "ux5cM!cqA2"
+  - bacula_initdb: "u2df!gdff"
+  - postgres: "hg@#kj5S"
+  - bacula_sd: "QqaeDXhn?R"
+  - bacula_fd1: "29f?CL!n>+"
+  - bacula_fd2: "L!n>+29f?C"
+
+#
+# COMMON SETTINGS
+#
+disable_ipv6: true
+upgrade_dist: false
+check_resources: true
+
+#
+# STORAGE SETTINGS
+#
+bacula_sd_name: BaculaStorage
+bacula_sd_dir_path: /srv/backup
+bacula_sd_device: FileStorage
+bacula_sd_media_type: File
+bacula_sd_port: 9103
+bacula_sd_max_jobs: 20
+bacula_sd_password: "{{ bacula_passwords['bacula_sd'] }}"
+
+#
+# DATABASE SETTINGS
+#
+pgsql_listen_address: "{{ansible_default_ipv4.address}}"
+pgsql_db_name: bacula
+pgsql_db_password: "{{ bacula_passwords['bacula_db'] }}"
+pgsql_init_pass: "{{ bacula_passwords['bacula_initdb'] }}"
+pgsql_hba: |
+  host  all     postgres  {{ansible_default_ipv4.address}}/{{ansible_default_ipv4.prefix}}  password
+  host  bacula  bacula    {{ansible_default_ipv4.address}}/{{ansible_default_ipv4.prefix}}  password
+
+#
+# WEB SETTINGS
+#
+bacula_db_port: 5432
+bconsole_work_dir: /etc/bacula/new/
+
+#
+# DIRECTOR SETTINGS
+#
+bacula_dir_name: BaculaDirector
+bacula_dir_address: "{{ansible_default_ipv4.address}}"
+bacula_dir_port: 9101
+bacula_dir_conf_max_jobs: 1
+bacula_db_catalog: PostgresCatalog
+bacula_db_name: bacula
+bacula_db_user: bacula
+bacula_db_password: "{{ bacula_passwords['bacula_db'] }}"
+bacula_db_address: "{{ansible_default_ipv4.address}}"
+
+bacula_conf_storages:
+- {
+    name: BaculaStorage,
+    address: "{{ansible_default_ipv4.address}}",
+    port: 9103,
+    device: FileStorage,
+    media_type: File,
+    file_src: bacula-storage.conf.tpl,
+    file_dst: /etc/bacula/storage.d/bacula-storage.conf,
+    pass_file: /etc/bacula/password.d/bacula-storage.conf,
+}

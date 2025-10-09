@@ -1,0 +1,36 @@
+pgsql_data: /var/lib/pgsql/data/
+pgsql_init_locale: ru_RU.UTF-8
+pgsql_init_cmd: /usr/bin/initdb
+
+pgsql_hba_conf: /var/lib/pgsql/data/pg_hba.conf
+pgsql_conf: /var/lib/pgsql/data/postgresql.conf
+pgsql_conf_backup: true
+
+pgsql_user: postgres
+pgsql_group: postgres
+pgsql_filemode: 0600
+
+pgsql_insertafter: "^#listen_addresses = "
+pgsql_listen_line: "listen_addresses = '{{ pgsql_listen_address }}'"
+
+pgsql_service: postgresql
+pgsql_service_state: started
+pgsql_service_enabled: yes
+
+pgsql_service_check: 'systemctl status postgresql.service | grep -E "Active|Loaded"'
+pgsql_service_check_ports: 'ss -ltnp | grep postgres'
+
+pgsql_grant_priv_regex: "^db_password="
+pgsql_grant_priv_line: "db_password='{{ pgsql_db_password }}'"
+pgsql_grant_priv_conf: /usr/share/bacula/scripts/grant_postgresql_privileges
+
+pgsql_script_db: /usr/share/bacula/scripts/create_postgresql_database -U postgres
+pgsql_script_tbl: /usr/share/bacula/scripts/make_postgresql_tables -U postgres
+pgsql_script_priv: /usr/share/bacula/scripts/grant_postgresql_privileges -U postgres
+
+install_packages:
+  - postgresql17-server
+  - postgresql17-contrib
+  - bacula15-director-postgresql
+  - python3-module-psycopg2
+

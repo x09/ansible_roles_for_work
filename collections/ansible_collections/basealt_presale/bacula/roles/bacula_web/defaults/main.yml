@@ -1,0 +1,12 @@
+bacula_dir_name: BaculaDirector
+bacula_dir_address: 127.0.0.1
+bacula_dir_port: 9101
+bacula_dir_password: "Pa$$w0rD"
+
+bacula_db_user: bacula
+bacula_db_name: bacula
+bacula_db_password: Pa$$w0rD
+
+bacula_db_address: 127.0.0.1
+bacula_db_port: 5432
+bconsole_work_dir: /etc/bacula/new/

@@ -1,0 +1,39 @@
+bacula_dir_service: bacula-dir
+bacula_dir_service_state: started
+bacula_dir_service_enabled: yes
+
+bacula_dir_service_check: 'systemctl status bacula-dir.service | grep -E "Active|Loaded"'
+bacula_dir_service_check_ports: 'ss -ltnp | grep bacula-dir'
+
+bacula_dir_conf_src: bacula-dir.conf.tpl
+bacula_dir_conf_dst: /etc/bacula/bacula-dir.conf
+bacula_dir_conf_pass: /etc/bacula/password.d/bacula-director.conf
+bacula_dir_conf_work_dir: /var/lib/bacula
+bacula_dir_conf_pid_dir: /var/run/bacula
+bacula_dir_conf_query_file: /usr/share/bacula/scripts/query.sql
+
+bacula_conf_backup: true
+bacula_conf_pass: /etc/bacula/password.d
+
+bacula_conf_delete:
+  - /etc/bacula/client.d/client1.conf
+  - /etc/bacula/job.d/backupcatalog.conf
+  - /etc/bacula/job.d/restore.conf
+  - /etc/bacula/job.d/bacula.conf
+
+bacula_bcon_conf_src: bconsole.conf.tpl
+bacula_bcon_conf_dst: /etc/bacula/bconsole.conf
+
+jobdefs_conf_src: bacula-jobdefs.conf.tpl
+jobdefs_conf_dst: /etc/bacula/job.d/defaultjob.conf
+
+install_packages:
+  - bacula15-director-common
+  - bacula15-director-postgresql
+  - bacula15-console
+
+bacula_msg_insert_after: "console = all, !skipped, !saved"
+bacula_msg_insert_line: "  catalog = all, !debug, !skipped, !saved"
+bacula_msg_paths:
+  - /etc/bacula/messages.d/daemon.conf
+  - /etc/bacula/messages.d/standart.conf

@@ -1,0 +1,65 @@
+- name: "Установка пакетов"
+  apt_rpm:
+    pkg: "{{ item }}"
+    update_cache: yes
+    state: present
+  with_items: "{{ install_packages }}"
+
+- name: "Конфигурация bacula-fd.conf"
+  template:
+    src: "{{ bacula_fd_conf_src }}"
+    dest: "{{ bacula_fd_conf_dst }}"
+    backup: "{{ bacula_fd_tpl_backup }}"
+    force: "{{ bacula_fd_tpl_force }}"
+
+- name: "Пароль для доступа"
+  template:
+    src: "{{ bacula_fd_pass_conf_src }}"
+    dest: "{{ bacula_fd_pass_conf_dst }}"
+    backup: "{{ bacula_fd_tpl_backup }}"
+    force: "{{ bacula_fd_tpl_force }}"
+
+- name: "PKI шифрование"
+  set_fact:
+    encryption: "{{ bacula_pki_encryption }}"
+    signatures: "{{ bacula_pki_signatures }}"
+
+- name: "Установка ключей шифрования"
+  when: encryption or encryption | bool
+  copy:
+    src: "{{ bacula_pki_keypair_src }}"
+    dest: "{{ bacula_pki_keypair }}"
+    owner: "{{ bacula_pki_owner }}"
+    group: "{{ bacula_pki_group }}"
+    mode: '{{ bacula_pki_mode }}'
+
+- name: "Установка мастер-сертификата для ключей шифрования"
+  when: encryption or encryption | bool
+  copy:
+    src: "{{ bacula_pki_master_key_src }}"
+    dest: "{{ bacula_pki_master_key }}"
+    owner: "{{ bacula_pki_owner }}"
+    group: "{{ bacula_pki_group }}"
+    mode: '{{ bacula_pki_mode }}'
+
+- name: "Запуск службы"
+  systemd:
+    name: "{{ bacula_fd_service }}"
+    state: "{{ bacula_fd_service_status }}"
+    enabled: "{{ bacula_fd_service_enabled }}"
+
+- name: "Проверка службы"
+  shell: "{{ bacula_fd_service_check }}"
+  register: print_service_status
+
+- name: "Статус службы"
+  debug:
+    var: print_service_status.stdout_lines
+
+- name: "Проверка портов"
+  shell: "{{ bacula_fd_service_check_ports }}"
+  register: print_sockets
+
+- name: "Прослушиваемые порты"
+  debug:
+    var: print_sockets.stdout_lines

@@ -85,20 +85,25 @@
           }
         ],
 
+{% if dhcp_reservation %}
         "reservations": [
+            {% for reservation in dhcp_reservation %}
             {
-                "hw-address": "1a:1b:1c:1d:1e:1f",
-                "ip-address": "10.9.114.249"
-            } ],
+                "hw-address": "{{ reservation.hwaddress }}",
+                "ip-address": "{{ reservation.ipaddress }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+{% endif %}
 
         "option-data": [
           {
             "name": "routers",
-            "data": "10.9.114.1"
+            "data": "{{dhcp_option_router}}"
           },
           {
             "name": "domain-name-servers",
-            "data": "10.9.114.25"
+            "data": "{{dhcp_option_dns}}"
           },
           {
             "name": "domain-name",
@@ -110,7 +115,7 @@
           },
           {
             "name": "time-servers",
-            "data": "10.9.114.10, 10.9.114.11"
+            "data": "{{dhcp_option_ntp}}"
           }
         ]
       }

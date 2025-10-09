@@ -1,0 +1,123 @@
+#
+# defaults file for bacula director
+#
+bacula_dir_name: dir
+bacula_dir_address: 127.0.0.1
+bacula_dir_port: 9101
+bacula_dir_conf_max_jobs: 1
+
+bacula_db_catalog: MyCatalog
+bacula_db_name: bacula
+bacula_db_user: bacula
+bacula_db_password: "Pa$$w0rD"
+bacula_db_address: 127.0.0.1
+
+bacula_conf_clients:
+  - {
+      file_src: bacula-client.conf.tpl,
+      file_dst: /etc/bacula/client.d/bacula-client.conf,
+      pass_file: /etc/bacula/password.d/bacula-client.conf,
+      name: BaculaClient,
+      address: bacula-client,
+      port: 9102,
+      catalog: MyCatalog,
+      file_retention: 30 days,
+      job_retention: 6 months,
+      autoprune: yes,
+    }
+bacula_conf_storages:
+  - {
+      name: BaculaStorage,
+      address: bacula-storage,
+      port: 9103,
+      device: FileStorage,
+      media_type: File,
+      file_src: bacula-storage.conf.tpl,
+      file_dst: /etc/bacula/storage.d/bacula-storage.conf,
+      pass_file: /etc/bacula/password.d/bacula-storage.conf,
+    }
+bacula_conf_filesets:
+  - {
+      name: BaculaFileset,
+      backup_paths: [
+        '/',
+      ],
+      exclude_paths: [
+        '/proc',
+        '/sys',
+        '/dev',
+        '/tmp',
+        '/.journal',
+        '/.fsck',
+      ],
+      file_src: bacula-fileset.conf.tpl,
+      file_dst: /etc/bacula/fileset.d/bacula-fileset.conf,
+    }
+bacula_conf_schedules:
+  - {
+      name: BaculaWeekly,
+      file_src: bacula-schedule.conf.tpl,
+      file_dst: /etc/bacula/schedule.d/bacula-schedule.conf,
+      run: [
+        "Full on mon-sun at 23:00",
+      ]
+    }
+bacula_conf_backup_jobs:
+  - {
+      name: BaculaClientBackupJob,
+      client: BaculaClient,
+      type: Backup,
+      level: Full,
+      fileset: BaculaFileset,
+      storage: BaculaStorage,
+      messages: Standart,
+      priority: 10,
+      schedule: BaculaWeekly,
+      pool: BaculaPool,
+      file_src: bacula-job-backup.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-job-backup.conf,
+    }
+bacula_conf_restore_jobs:
+  - {
+      name: BaculaClientRestoreJob,
+      client: BaculaClient,
+      type: Restore,
+      fileset: BaculaFileset,
+      storage: BaculaStorage,
+      messages: Standard,
+      pool: BaculaPool,
+      priority: 10,
+      where: /tmp/bacula-restores,
+      file_src: bacula-job-restore.conf.tpl,
+      file_dst: /etc/bacula/job.d/bacula-client-job-restore.conf,
+    }
+bacula_conf_pools:
+  - {
+      name: BaculaPool,
+      backup_type: Backup,
+      recycle: yes,
+      autoprune: yes,
+      volume_retention: 5 days,
+      label_format: "${Client}-${Year}-${Month}-${Day}-${Hour}-${Minute}-${Second}",
+      file_src: bacula-pool.conf.tpl,
+      file_dst: /etc/bacula/pool.d/bacula-pool.conf,
+    }
+bacula_conf_passwords:
+  - {
+      name: bacula-director,
+      password: "Pa$$sw0rD",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-director.conf,
+    }
+  - {
+      name: bacula-storage,
+      password: "Pa$$sw0rD",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-storage.conf,
+    }
+  - {
+      name: bacula-client,
+      password: "Pa$$sw0rD",
+      file_src: bacula-password.conf.tpl,
+      file_dst: /etc/bacula/password.d/bacula-client.conf,
+    }

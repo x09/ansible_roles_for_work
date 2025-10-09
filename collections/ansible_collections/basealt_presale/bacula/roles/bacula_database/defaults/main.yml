@@ -1,0 +1,9 @@
+pgsql_listen_address: 127.0.0.1
+pgsql_db_name: bacula
+pgsql_db_password: Pa$$w0rD
+pgsql_init_pass: Pa$$w0rD
+pgsql_init_pwfile: /tmp/pg_init_pwfile
+pgsql_postgres_pass: Pa$$w0rD
+pgsql_postgres_hash: "{{ pgsql_postgres_pass | password_hash('sha512') }}"
+pgsql_hba: |
+  host  all  postgres  192.168.0.0/24  password

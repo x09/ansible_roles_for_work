@@ -1,0 +1,72 @@
+- name: Установка имени хоста
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname_short }}"
+    use: systemd
+
+- name: "Доступность"
+  ping:
+
+- name: "Информация о системе"
+  debug:
+    msg:
+      - "{{ansible_facts.distribution}} {{ansible_facts.distribution_version}} ({{ansible_facts.distribution_release}})"
+      - "{{ansible_facts.kernel}}"
+
+- name: "Проверка памяти"
+  command: "free -h"
+  register: print_memory_usage
+  when: check_resources
+
+- name: "Использование памяти"
+  debug:
+    var: print_memory_usage.stdout_lines
+  when: check_resources
+
+- name: "Проверка дисков"
+  command: "df -h"
+  register: print_disk_usage
+  when: check_resources
+
+- name: "Использование дискового пространства"
+  debug:
+    var: print_disk_usage.stdout_lines
+  when: check_resources
+
+- name: "Обновление до актуального состояния"
+  apt_rpm:
+    update_cache: yes
+    dist_upgrade: yes
+    update_kernel: yes
+    clean: true
+  when: upgrade_dist
+  notify: Перезагрузка
+
+- name: "Выключить IPv6"
+  lineinfile:
+    path: "{{disable_ipv6_sysctl_conf}}"
+    backup: "{{disable_ipv6_sysctl_backup}}"
+    line: "{{disable_ipv6_sysctl_param}}"
+  when: disable_ipv6
+  notify: Перезагрузка
+
+#- name: "Добавить узлы в hosts"
+#  blockinfile:
+#    path: "{{etc_hosts}}"
+#    backup: true
+#    marker: "# {mark} ANSIBLE MANAGED BLOCK {{item.name}}"
+#    block: |
+#      {{item.ip}} {{item.name}}
+#  loop: "{{etc_hosts_entires}}"
+#  notify: Перезагрузка
+
+- name: "Установка пакета chrony"
+  apt_rpm:
+    update_cache: yes
+    pkg: "{{chrony_packages}}"
+    state: present
+
+- name: "Запуск службы chrony"
+  systemd:
+    name: "{{chrony_service}}"
+    enabled: "{{chrony_service_enabled}}"
+    state: "{{chrony_service_state}}"

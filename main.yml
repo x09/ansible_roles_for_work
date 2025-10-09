@@ -100,3 +100,21 @@
   roles:
     - role: glpi
       tags: glpi
+
+- hosts:
+    - backup_group
+  vars_files:
+    - vars/standalone_bacula.yml
+  collections:
+    - basealt_presale.bacula
+  roles:
+    - bacula_common
+    - bacula_database
+    - bacula_storage
+      #или FQCN для каждой роли: 
+    - basealt_presale.bacula.bacula_director
+    - basealt_presale.bacula.bacula_web
+  tags:
+    standalone_bacula
+
+    #  when: ansible_distribution == "Altlinux"

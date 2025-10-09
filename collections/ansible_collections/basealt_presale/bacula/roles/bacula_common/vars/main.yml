@@ -1,0 +1,11 @@
+chrony_packages: chrony
+
+chrony_service: chronyd
+chrony_service_enabled: yes
+chrony_service_state: started
+
+etc_hosts: /etc/hosts
+
+disable_ipv6_sysctl_conf: /etc/net/sysctl.conf
+disable_ipv6_sysctl_param: net.ipv6.conf.all.disable_ipv6 = 1
+disable_ipv6_sysctl_backup: true

@@ -1,0 +1,53 @@
+- name: "Установка пакетов"
+  apt_rpm:
+    pkg: "{{ item }}"
+    update_cache: yes
+    state: present
+  with_items: "{{ install_packages }}"
+
+- name: "Конфигурация bacula-sd.conf"
+  template:
+    backup: "{{ bacula_sd_conf_backup }}"
+    src: "{{ bacula_sd_conf_tpl_src }}"
+    dest: "{{ bacula_sd_conf_tpl_dst }}"
+
+- name: "Пароль для конфигурации"
+  template:
+    backup: "{{ bacula_sd_conf_backup }}"
+    src: "{{ bacula_sd_pass_tpl_src }}"
+    dest: "{{ bacula_sd_pass_tpl_dst }}"
+
+- name: "Создание каталога резервных копий"
+  file:
+    path: "{{ bacula_sd_dir_path }}"
+    owner: bacula
+    group: bacula
+    state: directory
+
+- name: "Конфигурация filestorage.conf"
+  template:
+    backup: "{{ bacula_sd_conf_backup }}"
+    src: "{{ bacula_dev_conf_tpl_src }}"
+    dest: "{{ bacula_dev_conf_tpl_dst }}"
+
+- name: "Запуск службы"
+  systemd:
+    name: "{{ bacula_sd_service }}"
+    state: "{{ bacula_sd_service_state }}"
+    enabled: "{{ bacula_sd_service_enabled }}"
+
+- name: "Проверка службы"
+  shell: "{{ bacula_sd_service_check }}"
+  register: print_service_status
+
+- name: "Статус службы"
+  debug:
+    var: print_service_status.stdout_lines
+
+- name: "Проверка портов"
+  shell: "{{ bacula_sd_service_check_ports }}"
+  register: print_sockets
+
+- name: "Прослушиваемые порты"
+  debug:
+    var: print_sockets.stdout_lines

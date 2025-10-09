@@ -1,0 +1,16 @@
+bacula_dir_name: dir_test
+
+bacula_fd_name: fd_test
+bacula_fd_port: 9102
+bacula_fd_max_jobs: 20
+bacula_fd_tpl_backup: true
+bacula_fd_tpl_force: true
+bacula_fd_password: Pa$$w0rD
+
+bacula_pki_encryption: No
+bacula_pki_signatures: No
+bacula_pki_keypair: /etc/bacula/client.pem
+bacula_pki_keypair_src: files/client.pem
+bacula_pki_master_key: /etc/bacula/master.crt
+bacula_pki_master_key_src: files/master.crt
+bacula_pki_cipher: AES256
