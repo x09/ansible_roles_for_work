@@ -2,6 +2,9 @@
 ---
 # defaults file for kea-dhcp-ha
 
+#dns domain
+dc_realm: "test.alt"
+
 kea_ha_mode: "hot-standby"
 dhcp_subnet: "10.9.114.0/24"
 dhcp_pool: "10.9.114.100 - 10.9.114.150"

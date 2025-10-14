@@ -1,5 +1,13 @@
 ---
 - hosts:
+    - 'all:!dc_group'
+  roles:
+    - role: glpi-client
+      tags: glpi_client
+    - role: join_to_domain
+      tags: join_to_domain
+
+- hosts:
     - srv_group
   roles:
     - role: cups
@@ -83,17 +91,17 @@
         - next_password is defined
         - nextcloud_remove is not defined
 
-- hosts:
-    - logs_group
-    - mail_group
-    - clients_group
-    - srv_group
-    - srv1c_group
-  roles:
-    - role: join_to_domain
-      tags: join_to_domain
-    - role: glpi-client
-      tags: glpi_client
+#- hosts:
+#    - logs_group
+#    - mail_group
+#    - clients_group
+#    - srv_group
+#    - srv1c_group
+#  roles:
+#    - role: join_to_domain
+#      tags: join_to_domain
+#    - role: glpi-client
+#      tags: glpi_client
 
 - hosts:
     - glpi_group

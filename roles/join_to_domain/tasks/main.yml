@@ -12,7 +12,7 @@
 
 - name: Join ALT
   ansible.builtin.include_tasks: alt_join.yml
-  when: ansible_distribution == "AltLinux"
+  when: ansible_distribution == "Altlinux"
 
 - name: Join DEBIAN clones
   ansible.builtin.include_tasks: debian_join.yml

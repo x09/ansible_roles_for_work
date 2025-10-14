@@ -1,10 +1,21 @@
 #SPDX-License-Identifier: MIT-0
 ---
+- name: Check services status
+  ansible.builtin.service_facts:
 
 - name: Установка имени хоста
   ansible.builtin.hostname:
     name: "{{ inventory_hostname_short }}.{{dc_realm}}"
     use: systemd
+
+- name: Stop and reset MariaDB
+  shell: |
+    systemctl stop mariadb
+    rm -rf /var/lib/mysql/*
+    mysql_install_db --user=mysql
+  when:
+    - "'mariadb.service' in ansible_facts.services"
+    - ansible_facts.services['mariadb.service'].state == 'running'
 
 - name: install  packages
   apt_rpm: 
@@ -18,9 +29,10 @@
     - mariadb-server
     - php{{ php_version }}-pdo_mysql
     - php{{ php_version }}-memcached
-    - glp
+    - glpi
     - glpi-apache2
     - glpi-php{{ php_version }}
+    - python3-module-pexpect
 
 - name: start services
   service:
@@ -35,13 +47,13 @@
   expect:
     command: /usr/bin/mysql_secure_installation
     responses:
-        '(?i)Enter current password for root (enter for none)': ""
-        '(?i)Enable unix_socket authentication?': 'y'
-        '(?i)Switch to unix_socket authentication': 'y'
-        '(?i)Change the root password?': 'y'
-        '(?i)New password:': "{{glpi_mysql_password}}"
-        '(?i)Re-enter new password:': "{{glpi_mysql_password}}"
-        '(?i)Remove anonymous users?': 'y'
+        'Enter current password for root': ""
+        'Enable unix_socket authentication?' : 'y'
+        'Switch to unix_socket authentication' : 'y'
+        '(?i)Change the root password?' : 'y'
+        '(?i)New password:' : "{{glpi_mysql_password}}"
+        '(?i)Re-enter new password:' : "{{glpi_mysql_password}}"
+        '(?i)Remove anonymous users?' : 'y'
         '(?i)Disallow root login remotely?': 'y'
         '(?i)Remove test database and access to it?': 'y'
         '(?i)Reload privilege tables now?': 'y'
@@ -49,7 +61,7 @@
 
 - name: Copy mysql db create script
   template:
-    src: create_gpli_db.sh.j2
+    src: "create_gpli_db.sh.j2"
     dest: "/root/create_gpli_db.sh"
     mode: 0755
     owner: root
@@ -57,7 +69,7 @@
 
 - name: Run create_gpli_db script
   command:
-    cmd: cmd/root/create_gpli_db.sh
+    cmd: /root/create_gpli_db.sh
 
 
 - name: configure mysqld
@@ -86,7 +98,7 @@
     value:  "{{item.value}}"
   with_items:
     - { section: "Session", option: "session.cookie_httponly", value: "on"  }
-    - { section: "Session", option: "session.cookie_secure", value: "on"  }
+#    - { section: "Session", option: "session.cookie_secure", value: "on"  }
 
 - name: start httpd2 service
   service:
@@ -96,12 +108,12 @@
     
 - name: Install glpi
   ansible.builtin.command:
-    cmd: "php{{php_version}} /var/www/webapps/glpi/bin/console db:install --default-language=ru_RU --db-name=glpi --db-user=dbuser --db-password='{{glpi_mysql_password}}' --db-host=127.0.0.1 --no-telemetry -n"
+    cmd: "php{{php_version}} /var/www/webapps/glpi/bin/console db:install --default-language=ru_RU --db-name=glpi --db-user=dbuser --db-password='{{glpi_mysql_password}}' --db-host=127.0.0.1 --no-telemetry -n --reconfigure"
   become: true
   become_method: su
   become_user: apache2
   become_flags: '-s /bin/sh'
-  no_log: true
+ # no_log: true
 
 - name: glpi-inventory plugin install
   ansible.builtin.unarchive:

@@ -39,6 +39,13 @@
     name: "{{ inventory_hostname_short }}.{{dc_realm}}"
     use: systemd
 
+- name: Запись имени хоста в /etc/hosts
+  ansible.builtin.copy:
+    content: "{{ansible_default_ipv4.address}} {{ inventory_hostname_short }}.{{dc_realm}} {{ inventory_hostname_short }}\n"
+    dest: /etc/hosts
+    backup: yes
+    append: yes
+
 - name: Добавление custom репо
   copy:
     src: custom.list
