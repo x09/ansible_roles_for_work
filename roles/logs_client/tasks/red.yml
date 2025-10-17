@@ -1,0 +1,10 @@
+---
+- name: install packages for RED OS
+  dnf: 
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - systemd-journal-remote 
+
+
+

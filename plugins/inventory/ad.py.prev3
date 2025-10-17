@@ -264,7 +264,7 @@ class InventoryModule(BaseInventoryPlugin):
         dns_server = self.get_option("dns")
         domain_suffix = self.get_option("domain_suffix")
         
-        # Добавляем domain_suffix к hostname ТОЛЬКО для DNS запроса
+        # Добавляем domain_suffix к hostname, если он указан
         if domain_suffix:
             fqdn = f"{hostname}.{domain_suffix}"
         else:
@@ -351,6 +351,7 @@ class InventoryModule(BaseInventoryPlugin):
         if isinstance(values, dict):
             for k, v in values.items():
                 self.inventory.set_variable(entity, k, v)
+
     def _build_inventory(self):
         if self._connection is None:
             self._create_client()
@@ -362,6 +363,7 @@ class InventoryModule(BaseInventoryPlugin):
         ansible_group = self.get_option("ansible group")
         use_ad_groups = self.get_option("use ad groups")
         use_ip = self.get_option("use_ip")
+        domain_suffix = self.get_option("domain_suffix")
 
         var_attribute = self.get_option("var attribute")
         import_vars = var_attribute is not None
@@ -395,26 +397,26 @@ class InventoryModule(BaseInventoryPlugin):
 
                 host_name = getattr(entry, hostname_var).value.lower()
 
-                # Resolve host IP address (domain_suffix используется ТОЛЬКО здесь)
+                # Resolve host IP address
                 host_ip = self._resolve_host_ip(host_name)
                 
                 if use_ip and host_ip:
                     # Если use_ip=True, используем IP как имя хоста в инвентаре
                     inventory_host = host_ip
-                else:
-                    inventory_host = host_name
-
-                # Сначала добавляем хост в инвентарь
-                self.inventory.add_host(inventory_host, group="all")
-                
-                # Теперь устанавливаем переменные
-                if use_ip and host_ip:
                     # Сохраняем оригинальное имя хоста в переменной
                     self.inventory.set_variable(inventory_host, 'ansible_hostname', host_name)
-
-                if not use_ip and host_ip:
-                    # Если используем hostname, но IP найден, устанавливаем ansible_host
-                    self.inventory.set_variable(inventory_host, 'ansible_host', host_ip)
+                    # Если указан domain_suffix, сохраняем FQDN в переменной
+                    if domain_suffix:
+                        fqdn = f"{host_name}.{domain_suffix}"
+                        self.inventory.set_variable(inventory_host, 'ansible_host_fqdn', fqdn)
+                else:
+                    inventory_host = host_name
+                    if host_ip:
+                        self.inventory.set_variable(inventory_host, 'ansible_host', host_ip)
+                    # Если указан domain_suffix, сохраняем FQDN в переменной
+                    if domain_suffix:
+                        fqdn = f"{host_name}.{domain_suffix}"
+                        self.inventory.set_variable(inventory_host, 'ansible_host_fqdn', fqdn)
 
                 if info:
                     self._set_variables(inventory_host, info)
@@ -428,3 +430,5 @@ class InventoryModule(BaseInventoryPlugin):
                         group_cn = group_dn_parts[0][1]
                         group = self.inventory.add_group(group_cn)
                         self.inventory.add_host(inventory_host, group=group)
+
+                self.inventory.add_host(inventory_host, group="all")

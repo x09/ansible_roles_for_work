@@ -1,47 +1,53 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# tasks file for glpi-client
+# tasks file for logs_client/
 
 - name: Check services status
   ansible.builtin.service_facts:
 
 - fail:
-    msg: "GLPI agent is already running, skipping installation"
+    msg: "Journald-upload is already running, skipping installation"
   when: 
-    - "'glpi-agent.service' in ansible_facts.services"
-    - ansible_facts.services['glpi-agent.service'].state == 'running'
+    - "'systemd-journal-upload.service' in ansible_facts.services"
+    - ansible_facts.services['systemd-journal-upload.service'].state == 'running'
   changed_when: false
 
 - name: Import OS specific vars
   include_vars: "{{ ansible_distribution }}/main.yml"
 
-- name: install glpi-agent for ALT OS
+- name: install systemd-journal-remote for ALT OS
   ansible.builtin.include_tasks: alt.yml
   when: ansible_distribution == "Altlinux"
 
   # for 1.8 tested only
-- name: install glpi-agent for Astra
+- name: install systemd-journal-remote for Astra
   ansible.builtin.include_tasks: astra.yml
   when: ansible_distribution == "Astra Linux" and  ansible_distribution_release == "1.8_x86-64"
 
-- name: install glpi-agent for RedOS
+- name: install systemd-journal-upload for RedOS
   ansible.builtin.include_tasks: red.yml
   when: ansible_distribution == "RED"
 
-- name: install glpi-agent for Debian and clones
+- name: install systemd-journal-upload for Debian and clones
   ansible.builtin.include_tasks: deb.yml
   when: ansible_distribution in deb_clone
   
-- name: install glpi-agent for RedHat and clones
+- name: install systemd-journal-upload for RedHat and clones
   ansible.builtin.include_tasks: rh.yml
   when: ansible_distribution in rh_clone
 
-- name: start glpi-agent service
+- name: systemd-journal-remote configuration
+  ini_file:
+    path: /etc/systemd/journal-upload.conf
+    section: Upload
+    option: URL
+    value: "http://{{log_server}}:19532"
+
+- name: restart systemd-journal-upload service
   service:
     name: "{{item}}"
     state: restarted
     enabled: yes
   with_items:
-    - glpi-agent
-  tags: glpi_client
+    - systemd-journal-upload
 

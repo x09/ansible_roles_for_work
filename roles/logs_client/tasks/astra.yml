@@ -1,0 +1,8 @@
+---
+- name: install packages for Astra
+  apt:
+    name: "{{item}}"
+    state: latest
+    update_cache: yes
+  with_items:
+    - systemd-journal-remote

@@ -2,4 +2,24 @@
 ---
 # vars file for logs_server
 
+#Для системного журнала (/var/log/journal/):
+#    SystemMaxUse= - максимальный общий размер, который может использовать журнал
+#    SystemKeepFree= - минимальное свободное пространство, которое должно оставаться в файловой системе
+#    SystemMaxFileSize= - максимальный размер одного журнального файла
+#Для runtime журнала (/run/log/journal/):
+#    RuntimeMaxUse= - максимальный общий размер в памяти
+#    RuntimeKeepFree= - минимальное свободное пространство в памяти
+#    RuntimeMaxFileSize= - максимальный размер одного файла в памяти
+#Дополнительные ограничивающие опции:
+#    SystemMaxFiles= - максимальное количество файлов для системного журнала
+#    RuntimeMaxFiles= - максимальное количество файлов для runtime журнала
+#    MaxRetentionSec= - максимальное время хранения записей
+#    MaxFileSec= - период времени, после которого файл будет ротирован
 
+proto: "http"
+
+journald_remote_configs:
+  - { file: "/etc/systemd/journald.conf" , section: "Journal", option: "SystemMaxUse" , value: "300M", unit: "systemd-journald"  }
+  - { file: "/etc/systemd/journald.conf" , section: "Journal", option: "MaxFileSec" , value: "1week", unit: "systemd-journald"  }
+  - { file: "/etc/systemd/journald.conf" , section: "Journal", option: "SystemKeepFree" , value: "500M", unit: "systemd-journald"  }
+  - { file: "/etc/systemd/journal-remote.conf" , section: "Remote", option: "MaxUse" , value: "5G", unit: "systemd-journal-remote" }

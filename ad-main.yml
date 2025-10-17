@@ -1,0 +1,17 @@
+---
+- hosts: dhcp_domain_computers
+  tasks:
+    - name: Загрузим переменные пула из роли KEA (игнорируем, если файла нет)
+      include_vars:
+        file: roles/kea-dhcp-ha/defaults/main.yml
+      ignore_errors: yes
+
+    - name: Определяем пул DHCP
+      set_fact:
+        in_dhcp_pool: "{{ ansible_default_ipv4.address | ip_in_range(dhcp_pool | default('10.9.114.100-10.9.114.150')) }}"
+
+    - name: Include GLPI client role for DHCP pool hosts
+      include_role:
+        name: glpi-client
+      when: in_dhcp_pool | default(false)
+      tags: glpi_client

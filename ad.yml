@@ -1,0 +1,14 @@
+---
+plugin: ad
+server: 10.9.114.10
+dns: 10.9.114.10
+domain_suffix: "test.alt"
+use_ip: true
+port: 3268
+#base: "OU=LinuxComputers,DC=test,DC=alt"
+base: "DC=test,DC=alt"
+filter: "(objectClass=computer)"
+username: "cn=ldap_reader,ou=Special,dc=test,dc=alt"
+password: "Qwerty1"
+ansible group: "dhcp_domain_computers"
+#hostname var: "dNSHostName"

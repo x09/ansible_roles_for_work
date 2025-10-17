@@ -99,11 +99,6 @@ DOCUMENTATION = r"""
             required: false
             type: bool
             default: true
-        domain_suffix:
-            description: Domain suffix to append to hostnames for DNS resolution
-            required: false
-            type: str
-            default: null
 """
 
 EXAMPLES = r"""
@@ -123,7 +118,6 @@ ansible group: Debian
 var attribute: info
 dns: 8.8.8.8
 use_ip: true
-domain_suffix: test.alt
 """
 import os
 import socket
@@ -262,18 +256,11 @@ class InventoryModule(BaseInventoryPlugin):
     def _resolve_host_ip(self, hostname):
         """Resolve hostname to IP address using configured DNS server or system default"""
         dns_server = self.get_option("dns")
-        domain_suffix = self.get_option("domain_suffix")
-        
-        # Добавляем domain_suffix к hostname ТОЛЬКО для DNS запроса
-        if domain_suffix:
-            fqdn = f"{hostname}.{domain_suffix}"
-        else:
-            fqdn = hostname
         
         if dns_resolver is None:
             # Fallback to system DNS resolution
             try:
-                return socket.gethostbyname(fqdn)
+                return socket.gethostbyname(hostname)
             except socket.gaierror:
                 return None
         
@@ -284,7 +271,7 @@ class InventoryModule(BaseInventoryPlugin):
             resolver.nameservers = [dns_server]
         
         try:
-            answers = resolver.resolve(fqdn, 'A')
+            answers = resolver.resolve(hostname, 'A')
             return str(answers[0]) if answers else None
         except (dns_resolver.NXDOMAIN, dns_resolver.NoAnswer, dns_resolver.Timeout):
             return None
@@ -351,6 +338,7 @@ class InventoryModule(BaseInventoryPlugin):
         if isinstance(values, dict):
             for k, v in values.items():
                 self.inventory.set_variable(entity, k, v)
+
     def _build_inventory(self):
         if self._connection is None:
             self._create_client()
@@ -395,26 +383,18 @@ class InventoryModule(BaseInventoryPlugin):
 
                 host_name = getattr(entry, hostname_var).value.lower()
 
-                # Resolve host IP address (domain_suffix используется ТОЛЬКО здесь)
+                # Resolve host IP address
                 host_ip = self._resolve_host_ip(host_name)
                 
                 if use_ip and host_ip:
                     # Если use_ip=True, используем IP как имя хоста в инвентаре
                     inventory_host = host_ip
-                else:
-                    inventory_host = host_name
-
-                # Сначала добавляем хост в инвентарь
-                self.inventory.add_host(inventory_host, group="all")
-                
-                # Теперь устанавливаем переменные
-                if use_ip and host_ip:
                     # Сохраняем оригинальное имя хоста в переменной
                     self.inventory.set_variable(inventory_host, 'ansible_hostname', host_name)
-
-                if not use_ip and host_ip:
-                    # Если используем hostname, но IP найден, устанавливаем ansible_host
-                    self.inventory.set_variable(inventory_host, 'ansible_host', host_ip)
+                else:
+                    inventory_host = host_name
+                    if host_ip:
+                        self.inventory.set_variable(inventory_host, 'ansible_host', host_ip)
 
                 if info:
                     self._set_variables(inventory_host, info)
@@ -428,3 +408,5 @@ class InventoryModule(BaseInventoryPlugin):
                         group_cn = group_dn_parts[0][1]
                         group = self.inventory.add_group(group_cn)
                         self.inventory.add_host(inventory_host, group=group)
+
+                self.inventory.add_host(inventory_host, group="all")

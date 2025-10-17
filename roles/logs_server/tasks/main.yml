@@ -20,14 +20,28 @@
     owner: systemd-journal-remote
     state: directory
 
+- name: Copy overide file
+  copy:
+    dest: "/etc/systemd/system/systemd-journal-remote.service.d/override.conf"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/lib/systemd/systemd-journal-remote --listen-http=-3 --output=/var/log/journal/remote/
+  when: proto | lower == "http"
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+
 - name: Create folders for certs
   ansible.builtin.file:
     path: "{{item}}"
     state: directory
   with_items:
-    - /etc/pki/ssl/private
-    - /etc/pki/ssl/certs
-    - /etc/pki/ssl/ca
+    - /etc/pki/tls/private
+    - /etc/pki/tls/certs
+    - /etc/pki/tls/ca
+  when: proto | lower == "https"
 
 # openssl genrsa -out /etc/pki/ssl/ca/trusted.key 4096
 - name: Generate CA cert
@@ -36,8 +50,9 @@
       - "openssl"
       - "genrsa"
       - "-out"
-      - "/etc/pki/ssl/ca/trusted.key"
+      - "/etc/pki/tls/ca/trusted.key"
       - "4096"
+  when: proto | lower == "https"
 
 #  openssl req -x509 -new -nodes -key /etc/pki/ssl/ca/trusted.key -sha256 -days 1825 -out /etc/pki/ssl/ca/trusted.crt -subj "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=CA-logs"
 - name: Generate cert for CA
@@ -49,24 +64,26 @@
       - "-new"
       - "-nodes"
       - "-key"
-      - "/etc/pki/ssl/ca/trusted.key"
+      - "/etc/pki/tls/ca/trusted.key"
       - "-sha256"
       - "-days"
       - "4096"
       - "-out"
-      - "/etc/pki/ssl/ca/trusted.crt"
+      - "/etc/pki/tls/ca/trusted.crt"
       - "-subj"
       - "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=CA-logs"
+  when: proto | lower == "https"
 
-# openssl genrsa -out /etc/pki/ssl/private/journal-remote.key 2048
+# openssl genrsa -out /etc/pki/tls/private/journal-remote.key 2048
 - name: Generate server key
   ansible.builtin.command:
     argv:
       - "openssl"
       - "genrsa"
       - "-out"
-      - "/etc/pki/ssl//private/journal-remote.key"
+      - "/etc/pki/tls/private/journal-remote.key"
       - "2048"
+  when: proto | lower == "https"
 
      
 - name: Generate CSR
@@ -76,11 +93,12 @@
       - "req"
       - "-new"
       - "-key"
-      - "/etc/pki/ssl/private/journal-remote.key"
+      - "/etc/pki/tls/private/journal-remote.key"
       - "-out"
-      - "/etc/pki/ssl/certs/journal-remote.csr"
+      - "/etc/pki/tls/certs/journal-remote.csr"
       - "-subj"
       - "/C=RU/ST=Stav/L=Stav/O=Home/OU=IT/CN=logs"
+  when: proto | lower == "https"
 
 - name: Generate server side cert
   ansible.builtin.command:
@@ -89,17 +107,18 @@
       - "x509"
       - "-req"
       - "-in"
-      - "/etc/pki/ssl/certs/journal-remote.csr"
+      - "/etc/pki/tls/certs/journal-remote.csr"
       - "-CA"
-      - "/etc/pki/ssl/ca/trusted.crt"
+      - "/etc/pki/tls/ca/trusted.crt"
       - "-CAkey"
-      - "/etc/pki/ssl/ca/trusted.key"
+      - "/etc/pki/tls/ca/trusted.key"
       - "-CAcreateserial"
       - "-out"
-      - "/etc/pki/ssl/certs/journal-remote.crt"
+      - "/etc/pki/tls/certs/journal-remote.crt"
       - "-days"
       - "4096"
       - "-sha256"
+  when: proto | lower == "https"
 
 - name: Set permissions for cert files
   ansible.builtin.file:
@@ -108,13 +127,21 @@
     group: "systemd-journal-remote"
     mode: '0600'
   with_items:
-    - /etc/pki/ssl/private/journal-remote.key
-    - /etc/pki/ssl/certs/journal-remote.crt
+    - /etc/pki/tls/private/journal-remote.key
+    - /etc/pki/tls/certs/journal-remote.crt
+  when: proto | lower == "https"
 
-- name: Запуск сервиса systemd-journal-remote
-  service:
-    name: "systemd-journal-remote.service"
-    state: started
-    enabled: true
+- name: extra options for configs
+  ini_file:
+    path: "{{item.file}}"
+    section: "{{item.section}}"
+    option: "{{item.option}}"
+    value: "{{item.value}}"
+  with_items: "{{journald_remote_configs}}"
 
-
+- name: Restart services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  loop: "{{ journald_remote_configs | map(attribute='unit') | unique }}"  

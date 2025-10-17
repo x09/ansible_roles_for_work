@@ -1,0 +1,10 @@
+---
+
+- name: install packages for ALT OS
+  apt_rpm:
+    name: "{{ item }}"
+    state: installed
+    update_cache: true
+  with_items:
+    - systemd-journal-remote
+

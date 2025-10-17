@@ -1,11 +1,14 @@
 ---
 - hosts:
-    - 'all:!dc_group'
+    - 'all'
+    - '!dc_group'
   roles:
     - role: glpi-client
       tags: glpi_client
     - role: join_to_domain
       tags: join_to_domain
+    - role: logs_client
+      tags: logs_client
 
 - hosts:
     - srv_group

@@ -1,5 +1,6 @@
 all:
   vars:
+    ansible_python_interpreter: "auto_silent"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     ansible_ssh_private_key_file: "/home/anton/Work/altdomain-stand/altdomain"
     ansible_user: root
