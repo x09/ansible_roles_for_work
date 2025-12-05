@@ -1,14 +1,16 @@
 global_defs {
 
     # Keepalived process identifier
-    lvs_id haproxy_DH{% if balancer_role is defined and balancer_role|upper == "SLAVE" %}_passive{% endif %}
+    router_id haproxy_ldap_{{balancer_prio}}{% if balancer_role is defined and balancer_role|upper == "BACKUP" %}_passive{% endif %}
 
 }
 # Script used to check if HAProxy is running
 vrrp_script check_haproxy {
     script "killall -0 haproxy"
-    interval 2
+    interval 3 
     weight 2
+    fall 2     
+    rise 1   
 }
 # Виртуальный интерфейс
 # The priority specifies the order in which the assigned interface to take over in a failover

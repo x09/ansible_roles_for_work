@@ -42,8 +42,8 @@ all:
       balancer_prio: "100"
     balancer2:
       ansible_host: "10.9.114.31"
-      balancer_role: "SLAVE"
-      balancer_prio: "101"
+      balancer_role: "BACKUP"
+      balancer_prio: "99"
     glpi:
       ansible_host: "10.9.114.16"
       ansible_remote_tmp: /tmp
@@ -114,7 +114,7 @@ all:
 
     balancer_group:
       vars:
-        balancer_virtual_ip: "10.9.114.35"
+        balancer_virtual_ip: "10.9.114.35/24"
       hosts:
         balancer1:
         balancer2:

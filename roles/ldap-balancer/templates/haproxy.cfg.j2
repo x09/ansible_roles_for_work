@@ -20,7 +20,6 @@ defaults
     timeout client 50000ms
     timeout server 50000ms
     retries 3
-    option redispatch
 
 frontend ldap_frontend
     bind *:389
@@ -32,18 +31,25 @@ frontend ldaps_frontend
 
 backend ldaps_backend
     mode tcp
-    balance roundrobin
+    # balance roundrobin
+    option ssl-hello-chk
+    option tcp-check
+    balance leastconn
 {% for host in groups['dc_group'] %}
-    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:636 check port 636 inter 2000 rise 2 fall 3
+    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:636 check port 636 inter 2000 rise 2 fall 3 
 {% endfor %}
 
 
 backend ldap_servers
     mode tcp
     option ldap-check 
-    balance roundrobin
+    # balance roundrobin
+    balance leastconn
+    #tcp-check connect port 389
+    #tcp-check send-binary 300c020101600702010304008000
+    #tcp-check expect binary 300c02010161070a010004000400
 {% for host in groups['dc_group'] %}
-    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:389 check port 389 inter 3000 rise 2 fall 3 
+    server  {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].inventory_hostname_short }}.{{dc_realm}}:389 check port 389 inter 2000 rise 2 fall 3 
 {% endfor %}
 
 
